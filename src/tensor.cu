@@ -120,3 +120,153 @@ Tensor Tensor::add(const Tensor& a, const Tensor& b){
 
     return out;
 }
+
+__global__ void sub_kernel(const float* a, const float* b, float* out, size_t size){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < size){
+        out[idx] = a[idx] - b[idx];
+    }
+}
+
+Tensor Tensor::subtract(const Tensor& a, const Tensor& b){
+    assert(a._size == b._size);
+    assert(a._device == b._device);
+    Tensor out(a._size, a._device);
+    
+    if (a._device == CPU){
+        for (size_t i = 0; i < a._size; ++i){
+            out._data_host[i] = a._data_host[i] - b._data_host[i];
+        }
+    } else {
+        dim3 blockSize(256);
+        dim3 gridSize((a._size + blockSize.x - 1) / blockSize.x);
+        sub_kernel<<<gridSize, blockSize>>>(a._data_device, b._data_device, out._data_device, a._size);
+        cudaDeviceSynchronize();
+    }
+    
+    return out;
+}
+
+__global__ void mul_kernel(const float* a, const float* b, float* out, size_t size){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size){
+        out[idx] = a[idx] * b[idx];
+    }
+}
+
+Tensor Tensor::multiply(const Tensor& a, const Tensor& b){
+    assert(a._size == b._size);
+    assert(a._device == b._device);
+    Tensor out(a._size, a._device);
+    
+    if (a._device == CPU){
+        for (size_t i = 0; i < a._size; ++i){
+            out._data_host[i] = a._data_host[i] * b._data_host[i];
+        }
+    } else {
+        dim3 blockSize(256);
+        dim3 gridSize((a._size + blockSize.x - 1) / blockSize.x);
+        mul_kernel<<<gridSize, blockSize>>>(a._data_device, b._data_device, out._data_device, a._size);
+        cudaDeviceSynchronize();
+    }
+    
+    return out;
+}
+
+float Tensor::sum() const {
+    float total = 0.0f;
+
+    if (_device == CPU){
+        for (size_t i = 0; i < _size; ++i){
+            total += _data_host[i];
+        }
+    }
+    else {
+        float* tmp = new float[_size];
+        cudaMemcpy(tmp, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
+        for (size_t i = 0; i < _size; ++i){
+            total += tmp[i];
+        }
+        delete[] tmp;
+    }
+
+    return total;
+}
+
+__global__ void matrixMul_kernel(float* A, float* B, float* C, int M, int K, int N) {
+    __shared__ float tileA[16][16];
+    __shared__ float tileB[16][16];
+
+    int row = threadIdx.y + blockIdx.y * blockDim.y;
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+
+    float sum = 0.0f;
+
+    for (int t = 0; t < (K + 15) / 16; ++t) {
+        int tileCol = t * 16 + threadIdx.x;
+        int tileRow = t * 16 + threadIdx.y;
+
+        tileA[threadIdx.y][threadIdx.x] = (row < M && tileCol < K) ? A[row * K + tileCol] : 0.0f;
+        tileB[threadIdx.y][threadIdx.x] = (tileRow < K && col < N) ? B[tileRow * N + col] : 0.0f;
+
+        __syncthreads();
+
+        for (int i = 0; i < 16; ++i) {
+            sum += tileA[threadIdx.y][i] * tileB[i][threadIdx.x];
+        }  
+
+        __syncthreads();
+    }
+
+    if (row < M && col < N) {
+        C[row * N + col] = sum;
+    }
+}
+
+Tensor Tensor::matmul(const Tensor& a, const Tensor& b, int M, int K, int N){
+    assert(a._size == M * K);
+    assert(b._size == K * N);
+
+    Tensor out(M * N, a._device);
+
+    if (a._device == CPU){
+        for (int i = 0; i < M; ++i){
+            for (int j = 0; j < N; ++j){
+                float sum = 0.0f;
+                for (int k = 0; k < K; ++k){
+                    sum += a._data_host[i * K + k] * b._data_host[k * N + j];
+                }
+                out._data_host[i * N + j] = sum;
+            }
+        }
+    }
+    else {
+        dim3 blockDim(16, 16);
+        dim3 gridDim((N + blockDim.x - 1) / blockDim.x, (M + blockDim.y - 1) / blockDim.y);
+        matrixMul_kernel<<<gridDim, blockDim>>>(a._data_device, b._data_device, out._data_device, M, K, N);
+        cudaDeviceSynchronize(); 
+    }
+
+    return out;
+}
+
+__global__ void relu_kernel(float* data, size_t size){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size){
+        data[idx] = data[idx] > 0 ? data[idx] : 0;
+    }
+}
+
+void Tensor::relu() {
+    if (_device == CPU) {
+        for (size_t i = 0; i < _size; ++i){
+            _data_host[i] = _data_host[i] > 0 ? _data_host[i] : 0;
+        }
+    } else {
+        dim3 blockSize(256);
+        dim3 gridSize((_size + blockSize.x - 1) / blockSize.x);
+        relu_kernel<<<blockSize, gridSize>>>(_data_device, _size);
+        cudaDeviceSynchronize();
+    }
+}

@@ -21,6 +21,14 @@ public:
     Device device() const;
 
     static Tensor add(const Tensor& a, const Tensor& b);
+    static Tensor subtract(const Tensor& a, const Tensor& b);
+    static Tensor multiply(const Tensor& a, const Tensor& b);
+
+    float sum() const;
+
+    void relu();
+
+    static Tensor matmul(const Tensor& a, const Tensor& b, int M, int K, int N);
 
 private:
     size_t _size;
