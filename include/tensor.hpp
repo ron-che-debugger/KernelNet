@@ -41,6 +41,8 @@ public:
     static Tensor add(const Tensor& a, const Tensor& b);
     static Tensor subtract(const Tensor& a, const Tensor& b);
     static Tensor multiply(const Tensor& a, const Tensor& b);
+    static Tensor transpose(const Tensor& a, int rows, int cols);
+    static Tensor scalar_multiply(const Tensor& a, float scalar);
 
     float sum() const;
 

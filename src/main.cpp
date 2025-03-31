@@ -209,6 +209,84 @@ int main() {
     g->grad.print();
     cout << "Gradient for h (expected to be g.data, i.e., 4's):" << endl;
     h->grad.print();
+    cout << endl;
+
+    cout << "===== Testing SumFunction =====" << std::endl;
+    // Create a tensor with known values.
+    Tensor t7(4, CPU);
+    t7.data()[0] = 1.0f;
+    t7.data()[1] = 2.0f;
+    t7.data()[2] = 3.0f;
+    t7.data()[3] = 4.0f;
+    // Wrap tensor in a Variable with gradient enabled.
+    Variable* var = new Variable(t7, true);
+    // Apply SumFunction.
+    Variable* sumVar = SumFunction::apply(var);
+    cout << "Forward (sum): " << sumVar->data.data()[0] << " (expected 10)" << std::endl;
+    // Backward: should propagate a gradient of 1 to each element.
+    Tensor gradSum(sumVar->data.size(), sumVar->data.device());
+    gradSum.fill(1.0f);
+    sumVar->backward(gradSum);
+    cout << "Backward (gradients for input): ";
+    for (size_t i = 0; i < var->data.size(); i++) {
+         cout << var->grad.data()[i] << " "; // Expected all ones.
+    }
+    cout << endl;
+
+    // ========= Test Matrix Multiplication Autograd =========
+    cout << "\n=== Test Matrix Multiplication Autograd ===" << endl;
+
+    Tensor A_tensor(6, CPU);
+    Tensor B_tensor(6, CPU);
+    // Fill A with 1,2,3,4,5,6 and B with 7,8,9,10,11,12.
+    A_tensor.data()[0] = 1; A_tensor.data()[1] = 2; A_tensor.data()[2] = 3;
+    A_tensor.data()[3] = 4; A_tensor.data()[4] = 5; A_tensor.data()[5] = 6;
+    B_tensor.data()[0] = 7; B_tensor.data()[1] = 8; B_tensor.data()[2] = 9;
+    B_tensor.data()[3] = 10; B_tensor.data()[4] = 11; B_tensor.data()[5] = 12;
+    Variable* A_var_mat = new Variable(A_tensor, true);
+    Variable* B_var_mat = new Variable(B_tensor, true);
+    // Compute C = A * B; dimensions: (2x3)*(3x2) -> 2x2 matrix.
+    Variable* C_var_mat = MatMulFunction::apply(A_var_mat, B_var_mat, 2, 3, 2);
+    cout << "Forward (MatMul result): ";
+    for (int i = 0; i < 4; i++){
+        cout << C_var_mat->data.data()[i] << " ";
+    }
+    cout << endl;
+    // Backward: use gradient ones.
+    Tensor gradC(C_var_mat->data.size(), C_var_mat->data.device());
+    gradC.fill(1.0f);
+    C_var_mat->backward(gradC);
+    cout << "Backward (gradients for A): ";
+    for (size_t i = 0; i < A_var_mat->data.size(); i++){
+        cout << A_var_mat->grad.data()[i] << " ";
+    }
+    cout << endl;
+    cout << "Backward (gradients for B): ";
+    for (size_t i = 0; i < B_var_mat->data.size(); i++){
+        cout << B_var_mat->grad.data()[i] << " ";
+    }
+    cout << endl;
+
+    // ========= Test MSE Function Autograd =========
+    cout << "\n===== Testing MSEFunction =====" << endl;
+    // Create prediction and target tensors.
+    Tensor pred_tensor(3, CPU);
+    pred_tensor.data()[0] = 2.0f; pred_tensor.data()[1] = 3.0f; pred_tensor.data()[2] = 4.0f;
+    Variable* pred_var = new Variable(pred_tensor, true);
+    Tensor target_tensor(3, CPU);
+    target_tensor.data()[0] = 1.0f; target_tensor.data()[1] = 2.0f; target_tensor.data()[2] = 3.0f;
+    // Compute MSE loss.
+    Variable* mse_loss = MSEFunction::apply(pred_var, target_tensor);
+    cout << "Forward (MSE loss): " << mse_loss->data.data()[0] << endl;
+    // Backward: propagate gradient 1.
+    Tensor gradLoss(mse_loss->data.size(), mse_loss->data.device());
+    gradLoss.fill(1.0f);
+    mse_loss->backward(gradLoss);
+    cout << "Backward (gradients for prediction): ";
+    for (size_t i = 0; i < pred_var->data.size(); i++){
+        cout << pred_var->grad.data()[i] << " ";
+    }
+    cout << endl;
     
     // Clean up allocated memory.
     delete var_a;
@@ -220,6 +298,12 @@ int main() {
     delete g;
     delete h;
     delete i;
-
+    delete A_var_mat;
+    delete B_var_mat;
+    delete C_var_mat;
+    delete var;
+    delete sumVar;
+    delete pred_var;
+    
     return 0;
 }
