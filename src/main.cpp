@@ -1,4 +1,5 @@
 #include "tensor.hpp"
+#include "autograd.hpp"
 #include <cuda_runtime.h>
 #include <cassert>
 #include <iostream>
@@ -133,6 +134,92 @@ int main() {
         }
         cout << endl;
     }
+
+    // ========= Test Addition Autograd =========
+    cout << "=== Test Addition Autograd ===" << endl;
+    
+    // Create two tensors and wrap them as Variables with gradients enabled.
+    Tensor t1(5, CPU);  // tensor of size 5 on CPU
+    Tensor t2(5, CPU);
+    t1.fill(2.0f);      // Fill with 2.0
+    t2.fill(3.0f);      // Fill with 3.0
+    
+    Variable* var_a = new Variable(t1, true);
+    Variable* var_b = new Variable(t2, true);
+    
+    // Compute c = a + b using the autograd-enabled addition.
+    Variable* c = AddFunction::apply(var_a, var_b);
+    
+    // Create a gradient tensor (ones) for the output.
+    Tensor grad_c(5, CPU);
+    grad_c.fill(1.0f);
+    
+    // Backpropagate through c.
+    c->backward(grad_c);
+    
+    cout << "Gradient for a (expected ones):" << endl;
+    var_a->grad.print();
+    cout << "Gradient for b (expected ones):" << endl;
+    var_b->grad.print();
+    
+    // ========= Test Subtraction Autograd =========
+    cout << "\n=== Test Subtraction Autograd ===" << endl;
+    
+    // Create two new tensors for subtraction.
+    Tensor t3(5, CPU);
+    Tensor t4(5, CPU);
+    t3.fill(5.0f);   // Fill with 5.0
+    t4.fill(2.0f);   // Fill with 2.0
+    
+    Variable* d = new Variable(t3, true);
+    Variable* e = new Variable(t4, true);
+    
+    // Compute f = d - e using the autograd-enabled subtraction.
+    Variable* f = SubtractFunction::apply(d, e);
+    
+    Tensor grad_f(5, CPU);
+    grad_f.fill(1.0f);
+    f->backward(grad_f);
+    
+    cout << "Gradient for d (expected ones):" << endl;
+    d->grad.print();
+    cout << "Gradient for e (expected -ones):" << endl;
+    e->grad.print();
+    
+    // ========= Test Multiplication Autograd =========
+    cout << "\n=== Test Multiplication Autograd ===" << endl;
+    
+    // Create two new tensors for multiplication.
+    Tensor t5(5, CPU);
+    Tensor t6(5, CPU);
+    t5.fill(4.0f);   // Fill with 4.0
+    t6.fill(3.0f);   // Fill with 3.0
+    
+    Variable* g = new Variable(t5, true);
+    Variable* h = new Variable(t6, true);
+    
+    // Compute i = g * h using the autograd-enabled multiplication.
+    Variable* i = MultiplyFunction::apply(g, h);
+    
+    Tensor grad_i(5, CPU);
+    grad_i.fill(1.0f);
+    i->backward(grad_i);
+    
+    cout << "Gradient for g (expected to be h.data, i.e., 3's):" << endl;
+    g->grad.print();
+    cout << "Gradient for h (expected to be g.data, i.e., 4's):" << endl;
+    h->grad.print();
+    
+    // Clean up allocated memory.
+    delete var_a;
+    delete var_b;
+    delete c;
+    delete d;
+    delete e;
+    delete f;
+    delete g;
+    delete h;
+    delete i;
 
     return 0;
 }

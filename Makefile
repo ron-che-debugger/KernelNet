@@ -20,27 +20,24 @@ INCLUDES = -I"./include" \
 # Preprocessor macros
 DEFINES = -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS
 
-# Host compiler flags with spaces
-XCOMPILER_FLAGS = "/std:c++17 /EHsc /W3 /nologo /O2 /MD"
+# Host compiler flags with spaces (switched to /MDd for debug runtime)
+XCOMPILER_FLAGS = "/std:c++17 /EHsc /W3 /nologo /O2 /MDd"
 
 # Define the host compiler
 CCBIN = "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.41.34120/bin/Hostx64/x64/cl.exe"
 
-# NVCC compile flags
+# NVCC compile flags (added -cudart static)
 NVCC_COMPILE_FLAGS = $(CUDA_ARCH) -G -g -std=c++17 $(INCLUDES) $(DEFINES) \
                      -Xcompiler $(XCOMPILER_FLAGS) \
                      -cudart static --use-local-env --machine 64 --compile -x cu \
                      -ccbin $(CCBIN)
 
-# Linker flags (use -Xlinker and properly quote paths with spaces)
-LINKER_FLAGS = -Xlinker /LIBPATH:\"D:/External_Apps/GLEW/lib\" \
-               -Xlinker /LIBPATH:\"D:/External_Apps/GLFW/lib\" \
-               -Xlinker /LIBPATH:\"C:/Program\ Files/Microsoft\ Visual\ Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64\" \
+# Linker flags (unchanged)
+LINKER_FLAGS = -Xlinker /LIBPATH:\"C:/Program\ Files/Microsoft\ Visual\ Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64\" \
                -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/ucrt/x64\" \
-               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/um/x64\" \
-               -lglew32 -lopengl32 -lglfw3 -luser32 -lgdi32 -lwinmm
+               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/um/x64\"
 
-# NVCC link flags
+# NVCC link flags (added -cudart static)
 NVCC_LINK_FLAGS = $(CUDA_ARCH) -G -g $(INCLUDES) $(DEFINES) \
                   -Xcompiler $(XCOMPILER_FLAGS) \
                   -cudart static --use-local-env --machine 64 \

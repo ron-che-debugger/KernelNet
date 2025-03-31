@@ -4,6 +4,10 @@
 
 using namespace std;
 
+Tensor::Tensor() : _size(0), _data_host(nullptr), _data_device(nullptr), _device(CPU) {
+    // No allocation is done here.
+}
+
 Tensor::Tensor(size_t size, Device device) : _size(size), _device(device){
     alloc_host();
 
@@ -81,6 +85,10 @@ const float* Tensor::data() const{
 
 size_t Tensor::size() const {
     return _size;
+}
+
+Device Tensor::device() const {
+    return _device;
 }
 
 void Tensor::free(){

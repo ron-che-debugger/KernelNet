@@ -5,9 +5,28 @@ enum Device {CPU, CUDA};
 
 class Tensor{
 public:
+    Tensor();
     Tensor(size_t size, Device device = CPU);
     ~Tensor();
 
+    // Deep-copy constructor
+    Tensor(const Tensor& other) {
+        _size = 0;
+        _data_host = nullptr;
+        _data_device = nullptr;
+        _device = CPU;
+        copyFrom(other);
+    }
+    
+    // Deep-copy assignment operator
+    Tensor& operator=(const Tensor& other) {
+        if (this != &other) {
+            free();         // free our existing data
+            copyFrom(other);
+        }
+        return *this;
+    }
+    
     void fill(float val);
     void print() const;
 
@@ -38,4 +57,19 @@ private:
     void alloc_host();
     void alloc_device();
     void free();
+
+    void copyFrom(const Tensor& other) {
+        _size = other._size;
+        _device = other._device;
+        if (_size > 0) {
+            // allocate host memory and copy
+            alloc_host();
+            memcpy(_data_host, other._data_host, _size * sizeof(float));
+
+            // if the source is CUDA, allocate device memory & copy
+            if (_device == CUDA) {
+                alloc_device();
+            }
+        }
+    }
 };
