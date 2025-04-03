@@ -23,7 +23,7 @@ SGD::SGD(const vector<VarPtr>& params, float lr) : params(params), lr(lr) {}
 void SGD::step() {
     for (auto param : params) {
         if (!param->grad_initialized) {
-            std::cout << "[ERROR] Gradient not initialized for parameter!" << std::endl;
+            cout << "[ERROR] Gradient not initialized for parameter!" << endl;
         }
         size_t n = param->data.size();
         if (param->data.device() == CUDA) {

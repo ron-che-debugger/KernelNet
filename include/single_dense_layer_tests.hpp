@@ -9,9 +9,7 @@
 #include "dense.hpp"
 #include "optimizer.hpp"
 
-using std::cout;
-using std::endl;
-using std::vector;
+using namespace std;
 
 // A simple test to train a single dense layer on a synthetic regression task.
 inline void runSingleDenseLayerTests(){
@@ -47,11 +45,6 @@ inline void runSingleDenseLayerTests(){
     vector<VarPtr> params = dense.parameters();
     SGD optimizer(params, 0.001f);
 
-    Tensor w_cpu = dense.weight->data; // make a copy
-    w_cpu.toCPU();
-    std::cout << "Initial weight = "; 
-    w_cpu.print();
-
     const int epochs = 5000;
     for (int epoch = 0; epoch < epochs; ++epoch){
         auto pred = dense.forward(X);
@@ -60,9 +53,6 @@ inline void runSingleDenseLayerTests(){
         grad_one.fill(1.0f);
         loss->backward(grad_one);
         Tensor weight_grad_cpu = dense.weight->grad;
-        weight_grad_cpu.toCPU();
-        std::cout << "Weight grad: ";
-        weight_grad_cpu.print();
         optimizer.step();
         optimizer.zero_grad();
 

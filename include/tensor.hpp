@@ -67,15 +67,12 @@ private:
         if (_size > 0) {
             alloc_host();
             if (_device == CUDA) {
-                // Copy the latest data from device to host before copying.
                 cudaMemcpy(_data_host, other._data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
             } else {
                 memcpy(_data_host, other._data_host, _size * sizeof(float));
             }
             if (_device == CUDA) {
                 alloc_device();
-                // Optionally, update device memory from the new host data.
-                cudaMemcpy(_data_device, _data_host, _size * sizeof(float), cudaMemcpyHostToDevice);
             }
         }
     }

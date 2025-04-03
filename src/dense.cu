@@ -40,18 +40,8 @@ Dense::Dense(int input_dim, int output_dim, Device device) : input_dim(input_dim
 VarPtr Dense::forward(const VarPtr& input) {
     int batch_size = input->data.size() / input_dim;
     auto z = MatMulFunction::apply(input, weight, batch_size, input_dim, output_dim);
-    // Create a copy of z->data and then transfer that copy to CPU
-    Tensor z_cpu = z->data;  
-    z_cpu.toCPU();
-    std::cout << "z = ";
-    z_cpu.print();
     
     auto out = AddFunction::apply(z, bias);
-    // Similarly, create a CPU copy for out->data
-    Tensor out_cpu = out->data;
-    out_cpu.toCPU();
-    std::cout << "prediction = ";
-    out_cpu.print();
     
     return out;
 }

@@ -6,10 +6,7 @@
 #include <iostream>
 #include <string>
 
-using std::vector;
-using std::shared_ptr;
-using std::weak_ptr;
-using std::make_shared;
+using namespace std;
 
 // Forward declarations.
 class Variable;
@@ -44,11 +41,9 @@ public:
     int pending_count;
     // Pointer to the function that created this variable.
     shared_ptr<Function> creator;
-    // A debug name for clearer tracing.
-    std::string debug_name;
 
     // Constructor.
-    Variable(const Tensor& data, bool requires_grad = false, const std::string &name = "");
+    Variable(const Tensor& data, bool requires_grad = false);
 
     // Set the creator of this variable.
     void set_creator(const FuncPtr& func);

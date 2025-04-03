@@ -31,8 +31,8 @@ static __global__ void broadcast_sum_kernel(const float* grad, float* out, size_
 // Variable Class Implementations
 // ============================================
 
-Variable::Variable(const Tensor& data, bool requires_grad, const std::string &name)
-    : data(data), requires_grad(requires_grad), grad_initialized(false), pending_count(0), debug_name(name)
+Variable::Variable(const Tensor& data, bool requires_grad)
+    : data(data), requires_grad(requires_grad), grad_initialized(false), pending_count(0)
 {
     if (requires_grad) {
         grad = Tensor(data.size(), data.device());
@@ -286,18 +286,14 @@ vector<Tensor> SumFunction::backward(const Tensor& grad_output) {
 // ============================================
 
 VarPtr MSEFunction::apply(const VarPtr& prediction, const Tensor& target) {
-    auto target_var = make_shared<Variable>(target, false, "target");
+    auto target_var = make_shared<Variable>(target, false);
     auto diff = SubtractFunction::apply(prediction, target_var);
     auto sq = MultiplyFunction::apply(diff, diff);
     auto sum_loss = SumFunction::apply(sq);
-    // Create a CPU copy for logging
-    Tensor sum_loss_cpu = sum_loss->data;
-    sum_loss_cpu.toCPU();
-    std::cout << "sum_loss = " << sum_loss_cpu.data()[0] << std::endl;
     
     Tensor div_tensor(1, sum_loss->data.device());
     div_tensor.fill(1.0f / prediction->data.size());
-    auto scale = make_shared<Variable>(div_tensor, false, "scale");
+    auto scale = make_shared<Variable>(div_tensor, false);
     
     auto mse_loss = MultiplyFunction::apply(sum_loss, scale);
     return mse_loss;
