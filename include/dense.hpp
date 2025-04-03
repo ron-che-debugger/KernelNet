@@ -7,7 +7,7 @@ using namespace std;
 
 class Module {
 public:
-    virtual vector<Variable*> parameters() {return {};}
+    virtual vector<VarPtr> parameters() {return {};}
     virtual void zero_grad() {
         for (auto param : parameters()){
             param->grad.fill(0.0f);
@@ -18,14 +18,14 @@ public:
 
 class Dense : public Module {
 public:
-    Variable* weight;
-    Variable* bias;
+    VarPtr weight;
+    VarPtr bias;
     int input_dim, output_dim;
 
     Dense(int input_dim, int output_dim, Device device = CPU);
-    ~Dense();
+    ~Dense() = default;
 
-    Variable* forward(Variable* input);
+    VarPtr forward(const VarPtr& input);
 
-    vector<Variable*> parameters() override;
+    vector<VarPtr> parameters() override;
 };

@@ -1,9 +1,11 @@
 #pragma once
 #include <iostream>
+#include <cassert>
+#include <cstring>
 
-enum Device {CPU, CUDA};
+enum Device { CPU, CUDA };
 
-class Tensor{
+class Tensor {
 public:
     Tensor();
     Tensor(size_t size, Device device = CPU);
@@ -43,11 +45,10 @@ public:
     static Tensor multiply(const Tensor& a, const Tensor& b);
     static Tensor transpose(const Tensor& a, int rows, int cols);
     static Tensor scalar_multiply(const Tensor& a, float scalar);
+    static Tensor broadcast_add(const Tensor& a, const Tensor& b);
 
     float sum() const;
-
     void relu();
-
     static Tensor matmul(const Tensor& a, const Tensor& b, int M, int K, int N);
 
 private:
@@ -64,14 +65,19 @@ private:
         _size = other._size;
         _device = other._device;
         if (_size > 0) {
-            // allocate host memory and copy
             alloc_host();
-            memcpy(_data_host, other._data_host, _size * sizeof(float));
-
-            // if the source is CUDA, allocate device memory & copy
+            if (_device == CUDA) {
+                // Copy the latest data from device to host before copying.
+                cudaMemcpy(_data_host, other._data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
+            } else {
+                memcpy(_data_host, other._data_host, _size * sizeof(float));
+            }
             if (_device == CUDA) {
                 alloc_device();
+                // Optionally, update device memory from the new host data.
+                cudaMemcpy(_data_device, _data_host, _size * sizeof(float), cudaMemcpyHostToDevice);
             }
         }
     }
+    
 };
