@@ -1,67 +1,68 @@
 #pragma once
-#include <iostream>
 #include <cassert>
 #include <cstring>
+#include <iostream>
 
-enum Device { CPU, CUDA };
+enum Device { CPU,
+              CUDA };
 
 class Tensor {
-public:
+  public:
     Tensor();
     Tensor(size_t size, Device device = CPU);
     ~Tensor();
 
     // Deep-copy constructor
-    Tensor(const Tensor& other) {
+    Tensor(const Tensor &other) {
         _size = 0;
         _data_host = nullptr;
         _data_device = nullptr;
         _device = CPU;
         copyFrom(other);
     }
-    
+
     // Deep-copy assignment operator
-    Tensor& operator=(const Tensor& other) {
+    Tensor &operator=(const Tensor &other) {
         if (this != &other) {
-            free();         // free our existing data
+            free(); // free our existing data
             copyFrom(other);
         }
         return *this;
     }
-    
+
     void fill(float val);
     void print() const;
 
     void toCUDA();
     void toCPU();
 
-    float* data();
-    const float* data() const;
+    float *data();
+    const float *data() const;
     size_t size() const;
     Device device() const;
 
-    static Tensor add(const Tensor& a, const Tensor& b);
-    static Tensor subtract(const Tensor& a, const Tensor& b);
-    static Tensor multiply(const Tensor& a, const Tensor& b);
-    static Tensor transpose(const Tensor& a, int rows, int cols);
-    static Tensor scalar_multiply(const Tensor& a, float scalar);
-    static Tensor broadcast_add(const Tensor& a, const Tensor& b);
+    static Tensor add(const Tensor &a, const Tensor &b);
+    static Tensor subtract(const Tensor &a, const Tensor &b);
+    static Tensor multiply(const Tensor &a, const Tensor &b);
+    static Tensor transpose(const Tensor &a, int rows, int cols);
+    static Tensor scalar_multiply(const Tensor &a, float scalar);
+    static Tensor broadcast_add(const Tensor &a, const Tensor &b);
 
     float sum() const;
     void relu();
-    static Tensor matmul(const Tensor& a, const Tensor& b, int M, int K, int N);
+    static Tensor matmul(const Tensor &a, const Tensor &b, int M, int K, int N);
 
-private:
+  private:
     size_t _size;
-    float* _data_host;
-    float* _data_device;
+    float *_data_host;
+    float *_data_device;
     Device _device;
 
     void alloc_host();
     void alloc_device();
     void free();
 
-    void copyFrom(const Tensor& other) {
+    void copyFrom(const Tensor &other) {
         _size = other._size;
         _device = other._device;
         if (_size > 0) {
@@ -76,5 +77,4 @@ private:
             }
         }
     }
-    
 };

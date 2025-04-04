@@ -1,53 +1,52 @@
 #include "tensor.hpp"
-#include <cuda_runtime.h>
 #include <cassert>
+#include <cuda_runtime.h>
 
 using namespace std;
 
 Tensor::Tensor() : _size(0), _data_host(nullptr), _data_device(nullptr), _device(CPU) {}
 
-Tensor::Tensor(size_t size, Device device) : _size(size), _device(device){
+Tensor::Tensor(size_t size, Device device) : _size(size), _device(device) {
     alloc_host();
-    if (_device == CUDA){
+    if (_device == CUDA) {
         alloc_device();
     }
 }
 
-Tensor::~Tensor(){
+Tensor::~Tensor() {
     free();
 }
 
-void Tensor::alloc_host(){
+void Tensor::alloc_host() {
     _data_host = new float[_size]();
 }
 
-void Tensor::alloc_device(){
+void Tensor::alloc_device() {
     cudaMalloc(&_data_device, _size * sizeof(float));
     cudaMemcpy(_data_device, _data_host, _size * sizeof(float), cudaMemcpyHostToDevice);
 }
 
-void Tensor::fill(float val){
-    for (size_t i = 0; i < _size; ++i){
+void Tensor::fill(float val) {
+    for (size_t i = 0; i < _size; ++i) {
         _data_host[i] = val;
     }
 
-    if (_device == CUDA){
+    if (_device == CUDA) {
         cudaMemcpy(_data_device, _data_host, _size * sizeof(float), cudaMemcpyHostToDevice);
     }
 }
 
 void Tensor::print() const {
-    if (_device == CUDA){
-        float* tmp = new float[_size];
+    if (_device == CUDA) {
+        float *tmp = new float[_size];
         cudaMemcpy(tmp, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
-        for (size_t i = 0; i < _size; ++i){
+        for (size_t i = 0; i < _size; ++i) {
             cout << tmp[i] << " ";
         }
         cout << "\n";
         delete[] tmp;
-    }
-    else {
-        for (size_t i = 0; i < _size; ++i){
+    } else {
+        for (size_t i = 0; i < _size; ++i) {
             cout << _data_host[i] << " ";
         }
         cout << "\n";
@@ -55,23 +54,25 @@ void Tensor::print() const {
 }
 
 void Tensor::toCUDA() {
-    if (_device == CUDA) return;
+    if (_device == CUDA)
+        return;
     alloc_device();
     _device = CUDA;
 }
 
 void Tensor::toCPU() {
-    if (_device == CPU) return;
+    if (_device == CPU)
+        return;
     cudaMemcpy(_data_host, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
     cudaFree(_data_device);
     _device = CPU;
 }
 
-float* Tensor::data() {
+float *Tensor::data() {
     return (_device == CUDA) ? _data_device : _data_host;
 }
 
-const float* Tensor::data() const{
+const float *Tensor::data() const {
     return (_device == CUDA) ? _data_device : _data_host;
 }
 
@@ -83,8 +84,8 @@ Device Tensor::device() const {
     return _device;
 }
 
-void Tensor::free(){
-    if (_data_host){
+void Tensor::free() {
+    if (_data_host) {
         delete[] _data_host;
     }
     if (_device == CUDA && _data_device) {
@@ -92,20 +93,20 @@ void Tensor::free(){
     }
 }
 
-__global__ void add_kernel(const float* a, const float* b, float* out, size_t size){
+__global__ void add_kernel(const float *a, const float *b, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size){
+    if (idx < size) {
         out[idx] = a[idx] + b[idx];
     }
 }
 
-Tensor Tensor::add(const Tensor& a, const Tensor& b){
+Tensor Tensor::add(const Tensor &a, const Tensor &b) {
     assert(a._size == b._size);
     assert(a._device == b._device);
     Tensor out(a._size, a._device);
 
-    if (a._device == CPU){
-        for (size_t i = 0; i < a._size; ++i){
+    if (a._device == CPU) {
+        for (size_t i = 0; i < a._size; ++i) {
             out._data_host[i] = a._data_host[i] + b._data_host[i];
         }
     } else {
@@ -118,20 +119,20 @@ Tensor Tensor::add(const Tensor& a, const Tensor& b){
     return out;
 }
 
-__global__ void sub_kernel(const float* a, const float* b, float* out, size_t size){
+__global__ void sub_kernel(const float *a, const float *b, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size){
+    if (idx < size) {
         out[idx] = a[idx] - b[idx];
     }
 }
 
-Tensor Tensor::subtract(const Tensor& a, const Tensor& b){
+Tensor Tensor::subtract(const Tensor &a, const Tensor &b) {
     assert(a._size == b._size);
     assert(a._device == b._device);
     Tensor out(a._size, a._device);
-    
-    if (a._device == CPU){
-        for (size_t i = 0; i < a._size; ++i){
+
+    if (a._device == CPU) {
+        for (size_t i = 0; i < a._size; ++i) {
             out._data_host[i] = a._data_host[i] - b._data_host[i];
         }
     } else {
@@ -144,20 +145,20 @@ Tensor Tensor::subtract(const Tensor& a, const Tensor& b){
     return out;
 }
 
-__global__ void mul_kernel(const float* a, const float* b, float* out, size_t size){
+__global__ void mul_kernel(const float *a, const float *b, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size){
+    if (idx < size) {
         out[idx] = a[idx] * b[idx];
     }
 }
 
-Tensor Tensor::multiply(const Tensor& a, const Tensor& b){
+Tensor Tensor::multiply(const Tensor &a, const Tensor &b) {
     assert(a._size == b._size);
     assert(a._device == b._device);
     Tensor out(a._size, a._device);
 
-    if (a._device == CPU){
-        for (size_t i = 0; i < a._size; ++i){
+    if (a._device == CPU) {
+        for (size_t i = 0; i < a._size; ++i) {
             out._data_host[i] = a._data_host[i] * b._data_host[i];
         }
     } else {
@@ -170,7 +171,7 @@ Tensor Tensor::multiply(const Tensor& a, const Tensor& b){
     return out;
 }
 
-__global__ void broadcast_add_kernel(const float* a, const float* b, float* out, size_t total_size, size_t small_size) {
+__global__ void broadcast_add_kernel(const float *a, const float *b, float *out, size_t total_size, size_t small_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < total_size) {
         int j = idx % small_size;
@@ -178,7 +179,7 @@ __global__ void broadcast_add_kernel(const float* a, const float* b, float* out,
     }
 }
 
-Tensor Tensor::broadcast_add(const Tensor& a, const Tensor& b) {
+Tensor Tensor::broadcast_add(const Tensor &a, const Tensor &b) {
     if (a._size == b._size) {
         return Tensor::add(a, b);
     }
@@ -212,14 +213,14 @@ Tensor Tensor::broadcast_add(const Tensor& a, const Tensor& b) {
 float Tensor::sum() const {
     float total = 0.0f;
 
-    if (_device == CPU){
-        for (size_t i = 0; i < _size; ++i){
+    if (_device == CPU) {
+        for (size_t i = 0; i < _size; ++i) {
             total += _data_host[i];
         }
     } else {
-        float* tmp = new float[_size];
+        float *tmp = new float[_size];
         cudaMemcpy(tmp, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
-        for (size_t i = 0; i < _size; ++i){
+        for (size_t i = 0; i < _size; ++i) {
             total += tmp[i];
         }
         delete[] tmp;
@@ -228,7 +229,7 @@ float Tensor::sum() const {
     return total;
 }
 
-__global__ void matrixMul_kernel(float* A, float* B, float* C, int M, int K, int N) {
+__global__ void matrixMul_kernel(float *A, float *B, float *C, int M, int K, int N) {
     __shared__ float tileA[16][16];
     __shared__ float tileB[16][16];
 
@@ -254,16 +255,16 @@ __global__ void matrixMul_kernel(float* A, float* B, float* C, int M, int K, int
     }
 }
 
-Tensor Tensor::matmul(const Tensor& a, const Tensor& b, int M, int K, int N) {
+Tensor Tensor::matmul(const Tensor &a, const Tensor &b, int M, int K, int N) {
     assert(a._size == M * K);
     assert(b._size == K * N);
     Tensor out(M * N, a._device);
 
     if (a._device == CPU) {
-        for (int i = 0; i < M; ++i){
-            for (int j = 0; j < N; ++j){
+        for (int i = 0; i < M; ++i) {
+            for (int j = 0; j < N; ++j) {
                 float sum = 0.0f;
-                for (int k = 0; k < K; ++k){
+                for (int k = 0; k < K; ++k) {
                     sum += a._data_host[i * K + k] * b._data_host[k * N + j];
                 }
                 out._data_host[i * N + j] = sum;
@@ -279,16 +280,16 @@ Tensor Tensor::matmul(const Tensor& a, const Tensor& b, int M, int K, int N) {
     return out;
 }
 
-__global__ void relu_kernel(float* data, size_t size){
+__global__ void relu_kernel(float *data, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size){
+    if (idx < size) {
         data[idx] = data[idx] > 0 ? data[idx] : 0;
     }
 }
 
 void Tensor::relu() {
     if (_device == CPU) {
-        for (size_t i = 0; i < _size; ++i){
+        for (size_t i = 0; i < _size; ++i) {
             _data_host[i] = _data_host[i] > 0 ? _data_host[i] : 0;
         }
     } else {
@@ -299,23 +300,23 @@ void Tensor::relu() {
     }
 }
 
-__global__ void transpose_kernel(const float* in, float* out, int rows, int cols){
+__global__ void transpose_kernel(const float *in, float *out, int rows, int cols) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = rows * cols;
-    if (idx < total){
+    if (idx < total) {
         int i = idx / cols;
         int j = idx % cols;
         out[j * rows + i] = in[i * cols + j];
     }
 }
 
-Tensor Tensor::transpose(const Tensor& a, int rows, int cols) {
+Tensor Tensor::transpose(const Tensor &a, int rows, int cols) {
     assert(rows * cols == a._size);
     Tensor out(a._size, a._device);
 
     if (a._device == CPU) {
-        for (int i = 0; i < rows; ++i){
-            for (int j = 0; j < cols; ++j){
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
                 out._data_host[j * rows + i] = a._data_host[i * cols + j];
             }
         }
@@ -330,18 +331,18 @@ Tensor Tensor::transpose(const Tensor& a, int rows, int cols) {
     return out;
 }
 
-__global__ void scalar_mul_kernel(const float* in, float* out, float scalar, size_t size){
+__global__ void scalar_mul_kernel(const float *in, float *out, float scalar, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size){
+    if (idx < size) {
         out[idx] = in[idx] * scalar;
     }
 }
 
-Tensor Tensor::scalar_multiply(const Tensor& a, float scalar){
+Tensor Tensor::scalar_multiply(const Tensor &a, float scalar) {
     Tensor out(a._size, a._device);
 
-    if (a._device == CPU){
-        for (size_t i = 0; i < a._size; ++i){
+    if (a._device == CPU) {
+        for (size_t i = 0; i < a._size; ++i) {
             out._data_host[i] = a._data_host[i] * scalar;
         }
     } else {

@@ -1,18 +1,18 @@
 #ifndef SINGLE_DENSE_LAYER_TESTS_HPP
 #define SINGLE_DENSE_LAYER_TESTS_HPP
 
-#include <iostream>
-#include <cstdlib>
-#include <cstring>
-#include "tensor.hpp"
 #include "autograd.hpp"
 #include "dense.hpp"
 #include "optimizer.hpp"
+#include "tensor.hpp"
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
 using namespace std;
 
 // A simple test to train a single dense layer on a synthetic regression task.
-inline void runSingleDenseLayerTests(){
+inline void runSingleDenseLayerTests() {
     srand(42);
     cout << "=== Training a Simple Dense Network on GPU (CUDA) ===" << endl;
 
@@ -33,20 +33,20 @@ inline void runSingleDenseLayerTests(){
 
     // Create target tensor Y on CPU then transfer to CUDA.
     Tensor Y_tensor(batch_size * output_dim, CPU);
-    float Y_data[] = { 3*1.0f + 2*2.0f,
-                        3*2.0f + 2*1.0f,
-                        3*3.0f + 2*0.0f,
-                        3*0.0f + 2*4.0f };
+    float Y_data[] = {3 * 1.0f + 2 * 2.0f,
+                      3 * 2.0f + 2 * 1.0f,
+                      3 * 3.0f + 2 * 0.0f,
+                      3 * 0.0f + 2 * 4.0f};
     memcpy(Y_tensor.data(), Y_data, sizeof(Y_data));
     Y_tensor.toCUDA();
-    
+
     // Build a Dense layer.
     Dense dense(input_dim, output_dim, device);
     vector<VarPtr> params = dense.parameters();
     SGD optimizer(params, 0.001f);
 
     const int epochs = 5000;
-    for (int epoch = 0; epoch < epochs; ++epoch){
+    for (int epoch = 0; epoch < epochs; ++epoch) {
         auto pred = dense.forward(X);
         auto loss = MSEFunction::apply(pred, Y_tensor);
         Tensor grad_one(loss->data.size(), loss->data.device());
@@ -56,7 +56,7 @@ inline void runSingleDenseLayerTests(){
         optimizer.step();
         optimizer.zero_grad();
 
-        if (epoch % 500 == 0){
+        if (epoch % 500 == 0) {
             loss->data.toCPU();
             cout << "Epoch " << epoch << " Loss: " << loss->data.data()[0] << endl;
             loss->data.toCUDA();

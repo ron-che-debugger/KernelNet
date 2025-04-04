@@ -2,28 +2,29 @@
 #define TENSOR_TESTS_HPP
 
 #include "tensor.hpp"
+#include <cassert>
 #include <cuda_runtime.h>
 #include <iostream>
-#include <cassert>
+
 using namespace std;
 
 inline void runTensorTests() {
     // ========= CPU Tests =========
     cout << "===== Testing on CPU =====" << endl;
-    
+
     // Create two 1D tensors of size 10.
     Tensor a(10, CPU);
     Tensor b(10, CPU);
     a.fill(2.0f);
     b.fill(3.0f);
 
-    // Test Broadcast Add on CPU 
+    // Test Broadcast Add on CPU
     // Create tensor A of size 6 and tensor B of size 3.
     Tensor A_broadcast(6, CPU);
     Tensor B_broadcast(3, CPU);
     // Fill A_broadcast with values [1, 2, 3, 4, 5, 6]
     for (size_t i = 0; i < A_broadcast.size(); ++i) {
-         A_broadcast.data()[i] = i + 1;
+        A_broadcast.data()[i] = i + 1;
     }
     // Fill B_broadcast with values [10, 20, 30]
     B_broadcast.data()[0] = 10;
@@ -38,7 +39,7 @@ inline void runTensorTests() {
     // Test Addition
     auto add_cpu = Tensor::add(a, b);
     cout << "Addition (2+3):" << endl;
-    add_cpu.print();  // Expect all elements to be 5.0
+    add_cpu.print(); // Expect all elements to be 5.0
 
     // Test Subtraction (b - a, expect 1.0 each)
     auto sub_cpu = Tensor::subtract(b, a);
@@ -100,12 +101,12 @@ inline void runTensorTests() {
     a_cuda.toCUDA();
     b_cuda.toCUDA();
 
-    // Test Broadcast Add on CUDA 
+    // Test Broadcast Add on CUDA
     // Create tensor A of size 6 and tensor B of size 3 (initialize on CPU, then move to CUDA).
     Tensor A_broadcast_cuda(6, CPU);
     Tensor B_broadcast_cuda(3, CPU);
     for (size_t i = 0; i < A_broadcast_cuda.size(); ++i) {
-         A_broadcast_cuda.data()[i] = i + 1;
+        A_broadcast_cuda.data()[i] = i + 1;
     }
     B_broadcast_cuda.data()[0] = 10;
     B_broadcast_cuda.data()[1] = 20;
@@ -117,7 +118,7 @@ inline void runTensorTests() {
     cout << "Broadcast Add (CUDA) result:" << endl;
     broadcast_cuda.print();
     // Expected output (after transferring to host internally in print): 11 22 33 14 25 36
-    
+
     // Test Addition on CUDA
     auto add_cuda = Tensor::add(a_cuda, b_cuda);
     cout << "Addition (CUDA):" << endl;

@@ -1,24 +1,24 @@
+#include "autograd.hpp"
 #include "optimizer.hpp"
 #include "tensor.hpp"
-#include "autograd.hpp"
 #include <cuda_runtime.h>
 
 // CUDA kernel to fill an array with a constant value.
-static __global__ void fill_kernel(float* data, float val, size_t size) {
+static __global__ void fill_kernel(float *data, float val, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         data[idx] = val;
     }
 }
 
-static __global__ void sgd_update_kernel(float* param_data, const float* grad_data, float lr, size_t size) {
+static __global__ void sgd_update_kernel(float *param_data, const float *grad_data, float lr, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         param_data[idx] -= lr * grad_data[idx];
     }
 }
 
-SGD::SGD(const vector<VarPtr>& params, float lr) : params(params), lr(lr) {}
+SGD::SGD(const vector<VarPtr> &params, float lr) : params(params), lr(lr) {}
 
 void SGD::step() {
     for (auto param : params) {

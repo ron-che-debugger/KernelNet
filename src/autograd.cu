@@ -1,26 +1,26 @@
 #include "autograd.hpp"
 #include "tensor.hpp"
-#include <cuda_runtime.h>
 #include <cassert>
+#include <cuda_runtime.h>
 #include <iostream>
 
 // ============================================
 // CUDA Kernel Definitions
 // ============================================
 
-static __global__ void fill_kernel(float* out, float value, size_t size) {
+static __global__ void fill_kernel(float *out, float value, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         out[idx] = value;
     }
 }
 
-static __global__ void broadcast_sum_kernel(const float* grad, float* out, size_t total_size, size_t small_size) {
+static __global__ void broadcast_sum_kernel(const float *grad, float *out, size_t total_size, size_t small_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < small_size) {
         float sum_val = 0.0f;
         int repeat = total_size / small_size;
-        for (int i = 0; i < repeat; i++){
+        for (int i = 0; i < repeat; i++) {
             sum_val += grad[i * small_size + idx];
         }
         out[idx] = sum_val;
@@ -31,20 +31,19 @@ static __global__ void broadcast_sum_kernel(const float* grad, float* out, size_
 // Variable Class Implementations
 // ============================================
 
-Variable::Variable(const Tensor& data, bool requires_grad)
-    : data(data), requires_grad(requires_grad), grad_initialized(false), pending_count(0)
-{
+Variable::Variable(const Tensor &data, bool requires_grad)
+    : data(data), requires_grad(requires_grad), grad_initialized(false), pending_count(0) {
     if (requires_grad) {
         grad = Tensor(data.size(), data.device());
         grad.fill(0.0f);
     }
 }
 
-void Variable::set_creator(const FuncPtr& func) {
+void Variable::set_creator(const FuncPtr &func) {
     creator = func;
 }
 
-void Variable::backward(const Tensor& grad_output) {
+void Variable::backward(const Tensor &grad_output) {
     if (requires_grad) {
         if (!grad_initialized) {
             grad = grad_output;
@@ -78,10 +77,12 @@ VarPtr Variable::detach() {
 // AddFunction Implementations
 // ============================================
 
-VarPtr AddFunction::apply(const VarPtr& a, const VarPtr& b) {
+VarPtr AddFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<AddFunction>();
-    if (a->requires_grad) a->pending_count++;
-    if (b->requires_grad) b->pending_count++;
+    if (a->requires_grad)
+        a->pending_count++;
+    if (b->requires_grad)
+        b->pending_count++;
     func->saved_a = a;
     func->saved_b = b;
     func->inputs.push_back(a);
@@ -94,12 +95,12 @@ VarPtr AddFunction::apply(const VarPtr& a, const VarPtr& b) {
     return out;
 }
 
-vector<Tensor> AddFunction::backward(const Tensor& grad_output) {
+vector<Tensor> AddFunction::backward(const Tensor &grad_output) {
     auto inp0 = saved_a;
     auto inp1 = saved_b;
 
     if (inp0->data.size() == inp1->data.size()) {
-        return { grad_output, grad_output };
+        return {grad_output, grad_output};
     }
 
     if (inp0->data.size() > inp1->data.size()) {
@@ -122,7 +123,7 @@ vector<Tensor> AddFunction::backward(const Tensor& grad_output) {
             broadcast_sum_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_inp1.data(), grad_output.size(), small_size);
             cudaDeviceSynchronize();
         }
-        return { grad_output, grad_inp1 };
+        return {grad_output, grad_inp1};
     }
 
     if (inp1->data.size() > inp0->data.size()) {
@@ -145,20 +146,22 @@ vector<Tensor> AddFunction::backward(const Tensor& grad_output) {
             broadcast_sum_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_inp0.data(), grad_output.size(), small_size);
             cudaDeviceSynchronize();
         }
-        return { grad_inp0, grad_output };
+        return {grad_inp0, grad_output};
     }
 
-    return { grad_output, grad_output };
+    return {grad_output, grad_output};
 }
 
 // ============================================
 // SubtractFunction Implementations
 // ============================================
 
-VarPtr SubtractFunction::apply(const VarPtr& a, const VarPtr& b) {
+VarPtr SubtractFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<SubtractFunction>();
-    if(a->requires_grad) a->pending_count++;
-    if(b->requires_grad) b->pending_count++;
+    if (a->requires_grad)
+        a->pending_count++;
+    if (b->requires_grad)
+        b->pending_count++;
     func->saved_a = a;
     func->saved_b = b;
     func->inputs.push_back(a);
@@ -171,7 +174,7 @@ VarPtr SubtractFunction::apply(const VarPtr& a, const VarPtr& b) {
     return out;
 }
 
-vector<Tensor> SubtractFunction::backward(const Tensor& grad_output) {
+vector<Tensor> SubtractFunction::backward(const Tensor &grad_output) {
     Tensor neg_one(grad_output.size(), grad_output.device());
     neg_one.fill(-1.0f);
     Tensor grad_b = Tensor::multiply(grad_output, neg_one);
@@ -179,17 +182,19 @@ vector<Tensor> SubtractFunction::backward(const Tensor& grad_output) {
         grad_b = Tensor(saved_b->data.size(), saved_b->data.device());
         grad_b.fill(0.0f);
     }
-    return { grad_output, grad_b };
+    return {grad_output, grad_b};
 }
 
 // ============================================
 // MultiplyFunction Implementations
 // ============================================
 
-VarPtr MultiplyFunction::apply(const VarPtr& a, const VarPtr& b) {
+VarPtr MultiplyFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<MultiplyFunction>();
-    if(a->requires_grad) a->pending_count++;
-    if(b->requires_grad) b->pending_count++;
+    if (a->requires_grad)
+        a->pending_count++;
+    if (b->requires_grad)
+        b->pending_count++;
     func->saved_a = a;
     func->saved_b = b;
     func->inputs.push_back(a);
@@ -202,25 +207,27 @@ VarPtr MultiplyFunction::apply(const VarPtr& a, const VarPtr& b) {
     return out;
 }
 
-vector<Tensor> MultiplyFunction::backward(const Tensor& grad_output) {
+vector<Tensor> MultiplyFunction::backward(const Tensor &grad_output) {
     Tensor grad_a = Tensor::multiply(grad_output, saved_b->data);
     Tensor grad_b = Tensor::multiply(grad_output, saved_a->data);
-    return { grad_a, grad_b };
+    return {grad_a, grad_b};
 }
 
 // ============================================
 // MatMulFunction Implementations
 // ============================================
 
-VarPtr MatMulFunction::apply(const VarPtr& a, const VarPtr& b, int M, int K, int N) {
+VarPtr MatMulFunction::apply(const VarPtr &a, const VarPtr &b, int M, int K, int N) {
     auto func = make_shared<MatMulFunction>();
-    if(a->requires_grad) a->pending_count++;
-    if(b->requires_grad) b->pending_count++;
+    if (a->requires_grad)
+        a->pending_count++;
+    if (b->requires_grad)
+        b->pending_count++;
     // Save strong references to inputs.
     func->saved_a = a;
     func->saved_b = b;
-    func->M = M; 
-    func->K = K; 
+    func->M = M;
+    func->K = K;
     func->N = N;
     func->inputs.push_back(a);
     func->inputs.push_back(b);
@@ -232,7 +239,7 @@ VarPtr MatMulFunction::apply(const VarPtr& a, const VarPtr& b, int M, int K, int
     return out;
 }
 
-vector<Tensor> MatMulFunction::backward(const Tensor& grad_output) {
+vector<Tensor> MatMulFunction::backward(const Tensor &grad_output) {
     // Use the saved strong references.
     auto inp1 = saved_a;
     auto inp2 = saved_b;
@@ -240,16 +247,17 @@ vector<Tensor> MatMulFunction::backward(const Tensor& grad_output) {
     Tensor grad_a = Tensor::matmul(grad_output, b_t, M, N, K);
     Tensor a_t = Tensor::transpose(inp1->data, M, K);
     Tensor grad_b = Tensor::matmul(a_t, grad_output, K, M, N);
-    return { grad_a, grad_b };
+    return {grad_a, grad_b};
 }
 
 // ============================================
 // SumFunction Implementations
 // ============================================
 
-VarPtr SumFunction::apply(const VarPtr& input) {
+VarPtr SumFunction::apply(const VarPtr &input) {
     auto func = make_shared<SumFunction>();
-    if(input->requires_grad) input->pending_count++;
+    if (input->requires_grad)
+        input->pending_count++;
     func->saved_input = input;
     func->inputs.push_back(input);
     float total = input->data.sum();
@@ -263,7 +271,7 @@ VarPtr SumFunction::apply(const VarPtr& input) {
     return out;
 }
 
-vector<Tensor> SumFunction::backward(const Tensor& grad_output) {
+vector<Tensor> SumFunction::backward(const Tensor &grad_output) {
     size_t n = saved_input->data.size();
     Tensor grad_input(n, saved_input->data.device());
     if (saved_input->data.device() == CUDA) {
@@ -278,23 +286,23 @@ vector<Tensor> SumFunction::backward(const Tensor& grad_output) {
             grad_input.data()[i] = grad_output.data()[0];
         }
     }
-    return { grad_input };
+    return {grad_input};
 }
 
 // ============================================
 // MSEFunction Implementations
 // ============================================
 
-VarPtr MSEFunction::apply(const VarPtr& prediction, const Tensor& target) {
+VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
     auto target_var = make_shared<Variable>(target, false);
     auto diff = SubtractFunction::apply(prediction, target_var);
     auto sq = MultiplyFunction::apply(diff, diff);
     auto sum_loss = SumFunction::apply(sq);
-    
+
     Tensor div_tensor(1, sum_loss->data.device());
     div_tensor.fill(1.0f / prediction->data.size());
     auto scale = make_shared<Variable>(div_tensor, false);
-    
+
     auto mse_loss = MultiplyFunction::apply(sum_loss, scale);
     return mse_loss;
 }

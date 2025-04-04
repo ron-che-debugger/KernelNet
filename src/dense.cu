@@ -1,15 +1,15 @@
+#include "dense.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
-#include "dense.hpp"
 
 using namespace std;
 
-__global__ void replicate_bias_kernel(const float* bias, float* out, int batch_size, int output_dim){
+__global__ void replicate_bias_kernel(const float *bias, float *out, int batch_size, int output_dim) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = batch_size * output_dim;
 
-    if (idx < total){
+    if (idx < total) {
         int j = idx % output_dim;
         out[idx] = bias[j];
     }
@@ -37,15 +37,15 @@ Dense::Dense(int input_dim, int output_dim, Device device) : input_dim(input_dim
     bias = make_shared<Variable>(b, true);
 }
 
-VarPtr Dense::forward(const VarPtr& input) {
+VarPtr Dense::forward(const VarPtr &input) {
     int batch_size = input->data.size() / input_dim;
     auto z = MatMulFunction::apply(input, weight, batch_size, input_dim, output_dim);
-    
+
     auto out = AddFunction::apply(z, bias);
-    
+
     return out;
 }
 
-vector<VarPtr> Dense::parameters(){
+vector<VarPtr> Dense::parameters() {
     return {weight, bias};
 }
