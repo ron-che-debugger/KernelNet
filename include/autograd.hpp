@@ -42,9 +42,11 @@ class Variable {
     int pending_count;
     // Pointer to the function that created this variable.
     shared_ptr<Function> creator;
+    // Debug name for tracing backpropagation.
+    string debug_name;
 
     // Constructor.
-    Variable(const Tensor &data, bool requires_grad = false);
+    Variable(const Tensor &data, bool requires_grad = false, const string &name = "");
 
     // Set the creator of this variable.
     void set_creator(const FuncPtr &func);
@@ -72,7 +74,6 @@ class AddFunction : public Function {
 // Subtraction: computes a - b.
 class SubtractFunction : public Function {
   public:
-    // Save strong references for backward.
     VarPtr saved_a;
     VarPtr saved_b;
 
@@ -83,7 +84,6 @@ class SubtractFunction : public Function {
 // Multiplication: computes a * b.
 class MultiplyFunction : public Function {
   public:
-    // Save strong references for backward.
     VarPtr saved_a;
     VarPtr saved_b;
 
@@ -107,6 +107,7 @@ class SumFunction : public Function {
   public:
     int input_size;
     VarPtr saved_input;
+
     static VarPtr apply(const VarPtr &input);
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
