@@ -52,7 +52,6 @@ inline void runSingleDenseLayerTests() {
         Tensor grad_one(loss->data.size(), loss->data.device());
         grad_one.fill(1.0f);
         loss->backward(grad_one);
-        Tensor weight_grad_cpu = dense.weight->grad;
         optimizer.step();
         optimizer.zero_grad();
 
