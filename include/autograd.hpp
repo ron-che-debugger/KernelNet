@@ -23,7 +23,6 @@ using FuncPtr = shared_ptr<Function>;
 class Function {
   public:
     vector<weak_ptr<Variable>> inputs;
-    // Optionally, store output as a weak pointer.
     weak_ptr<Variable> output;
 
     virtual ~Function() {}
@@ -38,12 +37,9 @@ class Variable {
     Tensor grad;
     bool requires_grad;
     bool grad_initialized;
-    // For shared nodes: number of children (pending backward contributions).
     int pending_count;
-    // Pointer to the function that created this variable.
     shared_ptr<Function> creator;
-    // Debug name for tracing backpropagation.
-    string debug_name;
+    string debug_name; // Optional name for tracing.
 
     // Constructor.
     Variable(const Tensor &data, bool requires_grad = false, const string &name = "");
@@ -60,10 +56,8 @@ class Variable {
 
 // --- Function Classes Declarations ---
 
-// Addition: computes a + b.
 class AddFunction : public Function {
   public:
-    // Save strong references for backward.
     VarPtr saved_a;
     VarPtr saved_b;
 
@@ -71,7 +65,6 @@ class AddFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-// Subtraction: computes a - b.
 class SubtractFunction : public Function {
   public:
     VarPtr saved_a;
@@ -81,7 +74,6 @@ class SubtractFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-// Multiplication: computes a * b.
 class MultiplyFunction : public Function {
   public:
     VarPtr saved_a;
@@ -91,7 +83,6 @@ class MultiplyFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-// Matrix multiplication: computes a matrix product.
 class MatMulFunction : public Function {
   public:
     int M, K, N;
@@ -102,7 +93,6 @@ class MatMulFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-// SumFunction: computes the sum of all elements in the input.
 class SumFunction : public Function {
   public:
     int input_size;
@@ -112,7 +102,6 @@ class SumFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-// MSEFunction: computes the mean squared error between a prediction and a target tensor.
 class MSEFunction : public Function {
   public:
     static VarPtr apply(const VarPtr &prediction, const Tensor &target);

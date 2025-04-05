@@ -1,9 +1,9 @@
 #include <iostream>
 using namespace std;
 
-// #define TEST_TENSORS
-// #define TEST_AUTOGRAD
-// #define TEST_SINGLEDENSELAYER
+#define TEST_TENSORS
+#define TEST_AUTOGRAD
+#define TEST_SINGLEDENSELAYER
 #define TEST_SINGLECONV2DDENSELAYER
 
 #ifdef TEST_TENSORS

@@ -345,7 +345,6 @@ Tensor conv2d_backward_input(const Tensor &grad_output, const Tensor &weight,
 VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const VarPtr &bias,
                              int in_channels, int input_height, int input_width,
                              int out_channels, int kernel_h, int kernel_w, int stride, int padding) {
-    cout << "[DEBUG] Conv2DFunction::apply() called." << endl;
     auto func = make_shared<Conv2DFunction>();
     int total = input->data.size();
     int single = in_channels * input_height * input_width;
@@ -361,8 +360,6 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
     func->padding = padding;
     func->out_height = (input_height - kernel_h + 2 * padding) / stride + 1;
     func->out_width = (input_width - kernel_w + 2 * padding) / stride + 1;
-    cout << "[DEBUG] Computed shapes: batch_size=" << batch_size
-         << ", out_height=" << func->out_height << ", out_width=" << func->out_width << endl;
 
     if (input->requires_grad)
         input->pending_count++;
@@ -384,12 +381,10 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
     auto out = make_shared<Variable>(out_data, req_grad);
     out->set_creator(func);
     func->output = out;
-    cout << "[DEBUG] Conv2DFunction::apply() finished. Returning output Variable 'Conv2D_out'." << endl;
     return out;
 }
 
 vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
-    cout << "[DEBUG] Conv2DFunction::backward() called." << endl;
     Tensor grad_input = conv2d_backward_input(grad_output, saved_weight->data,
                                               batch_size, in_channels, input_height, input_width,
                                               out_channels, kernel_h, kernel_w, stride, padding,
@@ -400,6 +395,5 @@ vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
                                                 out_height, out_width);
     Tensor grad_bias = conv2d_backward_bias(grad_output, batch_size,
                                             out_channels, out_height, out_width);
-    cout << "[DEBUG] Conv2DFunction::backward() finished. Gradients computed for input, weight, bias." << endl;
     return {grad_input, grad_weight, grad_bias};
 }
