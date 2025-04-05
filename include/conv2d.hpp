@@ -18,7 +18,7 @@ class Conv2D : public Module {
     int input_height, input_width;
 
     Conv2D(int in_channels, int out_channels, int kernel_h, int kernel_w,
-           int input_height, int input_width, int stride = 1, int padding = 0, Device device = CPU);
+           int input_height, int input_width, int stride = 1, int padding = 0, Device device = Device::CPU);
 
     VarPtr forward(const VarPtr &input);
 

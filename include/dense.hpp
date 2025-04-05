@@ -11,7 +11,7 @@ class Dense : public Module {
     VarPtr bias;
     int input_dim, output_dim;
 
-    Dense(int input_dim, int output_dim, Device device = CPU);
+    Dense(int input_dim, int output_dim, Device device = Device::CPU);
     ~Dense() = default;
 
     VarPtr forward(const VarPtr &input);
