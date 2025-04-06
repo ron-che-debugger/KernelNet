@@ -385,7 +385,7 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
 }
 
 vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
-    /** 
+    /**
     Tensor grad_input = conv2d_backward_input(grad_output, saved_weight->data,
                                               batch_size, in_channels, input_height, input_width,
                                               out_channels, kernel_h, kernel_w, stride, padding,
