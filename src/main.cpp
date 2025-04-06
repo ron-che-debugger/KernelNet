@@ -1,11 +1,12 @@
 #include <iostream>
 using namespace std;
 
-#define TEST_TENSORS
-#define TEST_AUTOGRAD
-#define TEST_SINGLEDENSELAYER
-#define TEST_SINGLECONV2DLAYER
-#define TEST_SINGLECONV2DDENSE
+//#define TEST_TENSORS
+//#define TEST_AUTOGRAD
+//#define TEST_SINGLEDENSELAYER
+#define TEST_SINGLEMAXPOOLLAYER
+//#define TEST_SINGLECONV2DLAYER
+//#define TEST_SINGLECONV2DDENSE
 
 #ifdef TEST_TENSORS
 #include "tensor_tests.hpp"
@@ -17,6 +18,10 @@ using namespace std;
 
 #ifdef TEST_SINGLEDENSELAYER
 #include "single_dense_layer_tests.hpp"
+#endif
+
+#ifdef TEST_SINGLEMAXPOOLLAYER
+#include "tests/single_maxpool_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLECONV2DLAYER
@@ -41,6 +46,11 @@ int main() {
 #ifdef TEST_SINGLEDENSELAYER
     cout << "\n===== Running Single Dense Layer Tests =====" << endl;
     runSingleDenseLayerTests();
+#endif
+
+#ifdef TEST_SINGLEMAXPOOLLAYER
+    cout << "\n===== Running Single Maxpool Layer Tests =====" << endl;
+    runSingleMaxpoolTests();
 #endif
 
 #ifdef TEST_SINGLECONV2DLAYER
