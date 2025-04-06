@@ -385,15 +385,15 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
 }
 
 vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
-    /**
     Tensor grad_input = conv2d_backward_input(grad_output, saved_weight->data,
                                               batch_size, in_channels, input_height, input_width,
                                               out_channels, kernel_h, kernel_w, stride, padding,
                                               out_height, out_width);
-    */
     // Create a dummy gradient for the input (zero tensor with same shape as input)
+    /**
     Tensor dummy_grad_input(saved_input->data.size(), saved_input->data.device());
     dummy_grad_input.fill(0.0f);
+    */
 
     Tensor grad_weight = conv2d_backward_weight(grad_output, saved_input->data,
                                                 batch_size, in_channels, input_height, input_width,
@@ -401,5 +401,5 @@ vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
                                                 out_height, out_width);
     Tensor grad_bias = conv2d_backward_bias(grad_output, batch_size,
                                             out_channels, out_height, out_width);
-    return {dummy_grad_input, grad_weight, grad_bias};
+    return {grad_input, grad_weight, grad_bias};
 }
