@@ -1,35 +1,45 @@
 #include <iostream>
 using namespace std;
 
-//#define TEST_TENSORS
-//#define TEST_AUTOGRAD
-//#define TEST_SINGLEDENSELAYER
+#define TEST_TENSORS
+#define TEST_AUTOGRAD
+#define TEST_SINGLEDENSELAYER
 #define TEST_SINGLEMAXPOOLLAYER
-//#define TEST_SINGLECONV2DLAYER
-//#define TEST_SINGLECONV2DDENSE
+#define TEST_SOFTMAX
+#define TEST_SINGLECONV2DLAYER
+#define TEST_SINGLECONV2DDENSE
+#define TEST_SIMPLECNN
 
 #ifdef TEST_TENSORS
-#include "tensor_tests.hpp"
+#include "tests/tensor_tests.hpp"
 #endif
 
 #ifdef TEST_AUTOGRAD
-#include "autograd_tests.hpp"
+#include "tests/autograd_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLEDENSELAYER
-#include "single_dense_layer_tests.hpp"
+#include "tests/single_dense_layer_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLEMAXPOOLLAYER
-#include "tests/single_maxpool_tests.hpp"
+#include "tests/maxpool_tests.hpp"
+#endif
+
+#ifdef TEST_SOFTMAX
+#include "tests/softmax_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLECONV2DLAYER
-#include "single_conv2d_tests.hpp"
+#include "tests/single_conv2d_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLECONV2DDENSE
-#include "single_conv2d_dense_test.hpp"
+#include "tests/single_conv2d_dense_test.hpp"
+#endif
+
+#ifdef TEST_SIMPLECNN
+#include "./tests/simple_cnn_tests.hpp"
 #endif
 
 int main() {
@@ -53,14 +63,24 @@ int main() {
     runSingleMaxpoolTests();
 #endif
 
+#ifdef TEST_SOFTMAX
+    cout << "\n===== Running Single Softmax Layer Tests =====" << endl;
+    runSoftmaxTests();
+#endif
+
 #ifdef TEST_SINGLECONV2DLAYER
-    cout << "\n===== Running Single Conv2D  Tests =====" << endl;
+    cout << "\n===== Running Single Conv2D Tests =====" << endl;
     runSingleConv2DTests();
 #endif
 
 #ifdef TEST_SINGLECONV2DDENSE
-    cout << "\n===== Running Single Conv2D Dense Tests =====" << endl;
+    cout << "\n===== Running Single Conv2D + Dense Tests =====" << endl;
     runSingleConv2DDenseTests();
+#endif
+
+#ifdef TEST_SIMPLECNN
+    cout << "\n===== Running Simple CNN Tests =====" << endl;
+    runSimpleCnnTests();
 #endif
     return 0;
 }

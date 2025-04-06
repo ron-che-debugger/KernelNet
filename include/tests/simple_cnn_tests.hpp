@@ -102,12 +102,6 @@ inline void runSimpleCnnTests() {
     if (final_output.device() != CPU) {
         final_output.toCPU();
     }
-    const float *final_data = final_output.data();
-    cout << "Final Prediction: ";
-    for (int i = 0; i < num_classes; i++) {
-        cout << final_data[i] << " ";
-    }
-    cout << endl;
 
     // Print Ground Truth again.
     cout << "Ground Truth: ";
@@ -121,4 +115,11 @@ inline void runSimpleCnnTests() {
         }
         cout << endl;
     }
+
+    const float *final_data = final_output.data();
+    cout << "Final Prediction: ";
+    for (int i = 0; i < num_classes; i++) {
+        cout << final_data[i] << " ";
+    }
+    cout << endl;
 }

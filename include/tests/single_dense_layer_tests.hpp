@@ -14,7 +14,6 @@ using namespace std;
 // A simple test to train a single dense layer on a synthetic regression task.
 inline void runSingleDenseLayerTests() {
     srand(42);
-    cout << "=== Training a Simple Dense Network on GPU (CUDA) ===" << endl;
 
     Device device = CUDA;
     const int batch_size = 4;
@@ -62,9 +61,13 @@ inline void runSingleDenseLayerTests() {
         }
     }
 
+    cout << "Ground Truth:" << endl;
+    Y_tensor.toCPU();
+    Y_tensor.print();
+
     auto final_pred = dense.forward(X);
     final_pred->data.toCPU();
-    cout << "Final predictions:" << endl;
+    cout << "Final Prediction:" << endl;
     final_pred->data.print();
 }
 

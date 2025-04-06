@@ -11,7 +11,6 @@ using namespace std;
 
 inline void runSingleConv2DTests() {
     srand(42);
-    cout << "=== Training Conv2D layer only with CUDA ===" << endl;
 
     // Use CUDA.
     Device device = CUDA;
@@ -52,11 +51,6 @@ inline void runSingleConv2DTests() {
     Y_tensor.data()[3] = 99.0f;
     Y_tensor.toCUDA();
 
-    cout << "Ground Truth Output:" << endl;
-    Y_tensor.toCPU();
-    Y_tensor.print();
-    Y_tensor.toCUDA();
-
     // Build the Conv2D layer.
     Conv2D conv(in_channels, out_channels, kernel_h, kernel_w, img_height, img_width, stride, padding, device);
 
@@ -85,9 +79,13 @@ inline void runSingleConv2DTests() {
         }
     }
 
+    cout << "Ground Truth:" << endl;
+    Y_tensor.toCPU();
+    Y_tensor.print();
+
     // Final prediction.
     auto final_pred = conv.forward(X);
     final_pred->data.toCPU();
-    cout << "Final predictions:" << endl;
+    cout << "Final Prediction:" << endl;
     final_pred->data.print();
 }

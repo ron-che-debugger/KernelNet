@@ -51,7 +51,8 @@ OBJDIR = obj
 TARGET = tensor_example.exe
 
 # Source files (adjust filenames as necessary)
-SOURCES = $(SRCDIR)/tensor.cpp $(SRCDIR)/dense.cpp $(SRCDIR)/conv2d.cpp $(SRCDIR)/optimizer.cpp $(SRCDIR)/autograd.cpp $(SRCDIR)/main.cpp
+SOURCES = $(SRCDIR)/tensor.cpp $(SRCDIR)/dense.cpp $(SRCDIR)/conv2d.cpp $(SRCDIR)/optimizer.cpp $(SRCDIR)/autograd.cpp\
+        $(SRCDIR)/maxpool.cpp $(SRCDIR)/softmax.cpp $(SRCDIR)/main.cpp
 
 # Object files
 OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.obj,$(SOURCES))

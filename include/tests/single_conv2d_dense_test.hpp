@@ -15,7 +15,6 @@ using namespace std;
 // The CNN consists of one Conv2D layer followed by a Dense (fully-connected) layer.
 inline void runSingleConv2DDenseTests() {
     srand(42);
-    cout << "=== Training a Simple CNN with CUDA ===" << endl;
 
     // Use CUDA
     Device device = CUDA;
@@ -53,9 +52,7 @@ inline void runSingleConv2DDenseTests() {
         }
         Y_tensor.data()[b] = sum_val;
     }
-    // Print ground truth Y.
-    cout << "Ground Truth Y:" << endl;
-    Y_tensor.print();
+
     Y_tensor.toCUDA();
 
     X_tensor.toCUDA();
@@ -100,8 +97,12 @@ inline void runSingleConv2DDenseTests() {
         }
     }
 
+    cout << "Ground Truth:" << endl;
+    Y_tensor.toCPU();
+    Y_tensor.print();
+
     auto final_pred = dense.forward(dense_input);
     final_pred->data.toCPU();
-    cout << "Final predictions:" << endl;
+    cout << "Final Prediction:" << endl;
     final_pred->data.print();
 }
