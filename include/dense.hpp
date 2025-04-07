@@ -1,9 +1,9 @@
 #pragma once
 
 #include "module.hpp"
-#include <vector>
 #include <cstdlib>
 #include <cuda_runtime.h>
+#include <vector>
 
 using namespace std;
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "autograd.hpp"
-#include <vector>
 #include <cuda_runtime.h>
+#include <vector>
 
 using namespace std;
 

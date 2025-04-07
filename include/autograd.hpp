@@ -2,11 +2,11 @@
 
 #include "tensor.hpp"
 #include <cassert>
+#include <cuda_runtime.h>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-#include <cuda_runtime.h>
 
 using namespace std;
 

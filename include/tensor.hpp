@@ -1,9 +1,8 @@
 #pragma once
 #include <cassert>
 #include <cstring>
-#include <iostream>
-#include <cassert>
 #include <cuda_runtime.h>
+#include <iostream>
 
 enum Device { CPU,
               CUDA };

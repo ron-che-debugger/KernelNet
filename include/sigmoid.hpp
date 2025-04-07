@@ -1,7 +1,8 @@
 #pragma once
-#include "autograd.hpp"
+#include "module.hpp"
 #include <cmath>
 #include <cuda_runtime.h>
+#include <vector>
 
 using namespace std;
 
@@ -15,4 +16,10 @@ class SigmoidFunction : public Function {
 
     // Backward pass: given grad_output, compute grad_input.
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
+};
+
+class Sigmoid : public Module {
+  public:
+    Sigmoid();
+    VarPtr forward(const VarPtr &input);
 };
