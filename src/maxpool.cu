@@ -1,5 +1,7 @@
 #include "maxpool.hpp"
 
+using namespace std;
+
 MaxPool2D::MaxPool2D(int kernel_size, int stride,
                      int batch_size, int channels,
                      int input_height, int input_width)

@@ -1,6 +1,4 @@
 #include "tensor.hpp"
-#include <cassert>
-#include <cuda_runtime.h>
 
 using namespace std;
 

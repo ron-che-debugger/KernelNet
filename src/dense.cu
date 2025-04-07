@@ -1,7 +1,4 @@
 #include "dense.hpp"
-#include <cstdlib>
-#include <cstring>
-#include <cuda_runtime.h>
 
 using namespace std;
 

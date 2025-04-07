@@ -1,7 +1,4 @@
 #include "autograd.hpp"
-#include "tensor.hpp"
-#include <cuda_runtime.h>
-#include <iostream>
 
 using namespace std;
 

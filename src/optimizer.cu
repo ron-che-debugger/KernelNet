@@ -1,7 +1,6 @@
-#include "autograd.hpp"
 #include "optimizer.hpp"
-#include "tensor.hpp"
-#include <cuda_runtime.h>
+
+using namespace std;
 
 // CUDA kernel to fill an array with a constant value.
 static __global__ void fill_kernel(float *data, float val, size_t size) {

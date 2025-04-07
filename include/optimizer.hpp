@@ -2,6 +2,7 @@
 
 #include "autograd.hpp"
 #include <vector>
+#include <cuda_runtime.h>
 
 using namespace std;
 

@@ -2,6 +2,8 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <cassert>
+#include <cuda_runtime.h>
 
 enum Device { CPU,
               CUDA };

@@ -2,6 +2,8 @@
 
 #include "module.hpp"
 #include <vector>
+#include <cstdlib>
+#include <cuda_runtime.h>
 
 using namespace std;
 
