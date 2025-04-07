@@ -1,58 +1,81 @@
 #pragma once
 #include "softmax.hpp"
+#include "tensor.hpp"
 
 using namespace std;
 
-// Test function for Softmax using CUDA.
 inline void runSoftmaxTests() {
     // Define dimensions: 1 sample, 3 classes.
     int batch_size = 1, num_classes = 3;
     size_t size = batch_size * num_classes;
 
-    // Create a CPU tensor with known values.
-    // For example, using values [1, 2, 3] for one sample.
-    Tensor input(size, CPU);
-    float *in_data = input.data();
-    in_data[0] = 1.0f;
-    in_data[1] = 2.0f;
-    in_data[2] = 3.0f;
-
-    // Transfer input to CUDA.
-    input.toCUDA();
-
-    // Wrap the input tensor in a Variable.
-    VarPtr input_var = make_shared<Variable>(input, false);
-
-    // Create a Softmax module with the given dimensions.
-    Softmax softmax(batch_size, num_classes);
-
-    // Run the forward pass.
-    VarPtr output_var = softmax.forward(input_var);
-    Tensor output = output_var->data;
-
-    // Transfer the output to CPU for validation.
-    if (output.device() != CPU) {
-        output.toCPU();
-    }
-
-    // Expected output:
-    // Compute using softmax formula:
-    // For input [1, 2, 3]:
-    // max = 3,
-    // exp(1-3)=exp(-2) ~ 0.135335, exp(2-3)=exp(-1) ~ 0.367879, exp(3-3)=exp(0)=1,
-    // sum ~ 1.503214, so probabilities ~ [0.09003057, 0.24472847, 0.66524096]
     vector<float> expected = {0.09003057f, 0.24472847f, 0.66524096f};
 
-    cout << "Expected Output (Ground Truth): ";
+    // ------------------- CPU Test -------------------
+    cout << "===== Running Softmax Test on CPU =====" << endl;
+
+    // Create a CPU tensor with known values.
+    Tensor input_cpu(size, CPU);
+    float *cpu_data = input_cpu.data();
+    cpu_data[0] = 1.0f;
+    cpu_data[1] = 2.0f;
+    cpu_data[2] = 3.0f;
+
+    // Wrap input in a Variable (remains on CPU).
+    VarPtr input_var_cpu = make_shared<Variable>(input_cpu, false, "softmax_input");
+
+    // Create Softmax module.
+    Softmax softmax_cpu(batch_size, num_classes);
+
+    // Run forward pass.
+    VarPtr output_var_cpu = softmax_cpu.forward(input_var_cpu);
+    Tensor output_cpu = output_var_cpu->data; // Already on CPU.
+
+    cout << "Expected Output (Ground Truth, CPU): ";
     for (size_t i = 0; i < expected.size(); ++i) {
         cout << expected[i] << " ";
     }
     cout << endl;
 
-    const float *out_data = output.data();
-    cout << "Softmax output: ";
+    cout << "Softmax Output (CPU): ";
+    const float *cpu_out = output_cpu.data();
     for (size_t i = 0; i < size; i++) {
-        cout << out_data[i] << " ";
+        cout << cpu_out[i] << " ";
+    }
+    cout << endl
+         << endl;
+
+    // ------------------- CUDA Test -------------------
+    cout << "===== Running Softmax Test on CUDA =====" << endl;
+
+    // Create a CPU tensor with the same values then transfer to CUDA.
+    Tensor input_cuda(size, CPU);
+    float *cuda_data = input_cuda.data();
+    cuda_data[0] = 1.0f;
+    cuda_data[1] = 2.0f;
+    cuda_data[2] = 3.0f;
+    input_cuda.toCUDA();
+
+    VarPtr input_var_cuda = make_shared<Variable>(input_cuda, false, "softmax_input");
+
+    Softmax softmax_cuda(batch_size, num_classes);
+
+    VarPtr output_var_cuda = softmax_cuda.forward(input_var_cuda);
+    Tensor output_cuda = output_var_cuda->data;
+    if (output_cuda.device() != CPU) {
+        output_cuda.toCPU();
+    }
+
+    cout << "Expected Output (Ground Truth, CUDA): ";
+    for (size_t i = 0; i < expected.size(); ++i) {
+        cout << expected[i] << " ";
+    }
+    cout << endl;
+
+    cout << "Softmax Output (CUDA): ";
+    const float *cuda_out = output_cuda.data();
+    for (size_t i = 0; i < size; i++) {
+        cout << cuda_out[i] << " ";
     }
     cout << endl;
 }
