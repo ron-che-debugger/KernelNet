@@ -30,11 +30,11 @@ Conv2D::Conv2D(int in_channels, int out_channels, int kernel_h, int kernel_w,
     if (device == CUDA) {
         w.toCUDA();
     }
-    weight = make_shared<Variable>(w, true);
+    weight = make_shared<Variable>(w, true, "Conv2D_weight");
 
     Tensor b(out_channels, device);
     b.fill(0.0f);
-    bias = make_shared<Variable>(b, true);
+    bias = make_shared<Variable>(b, true, "Conv2D_bias");
 }
 
 VarPtr Conv2D::forward(const VarPtr &input) {
@@ -378,7 +378,7 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
                                      out_channels, kernel_h, kernel_w, stride, padding,
                                      func->out_height, func->out_width);
     bool req_grad = input->requires_grad || weight->requires_grad || bias->requires_grad;
-    auto out = make_shared<Variable>(out_data, req_grad);
+    auto out = make_shared<Variable>(out_data, req_grad, "Conv2D_out");
     out->set_creator(func);
     func->output = out;
     return out;

@@ -30,11 +30,11 @@ Dense::Dense(int input_dim, int output_dim, Device device) : input_dim(input_dim
         w.toCUDA();
     }
 
-    weight = make_shared<Variable>(w, true);
+    weight = make_shared<Variable>(w, true, "Dense_weight");
 
     Tensor b(output_dim, device);
     b.fill(0.0f);
-    bias = make_shared<Variable>(b, true);
+    bias = make_shared<Variable>(b, true, "Dense_bias");
 }
 
 VarPtr Dense::forward(const VarPtr &input) {

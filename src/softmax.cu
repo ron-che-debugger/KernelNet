@@ -99,7 +99,7 @@ VarPtr SoftmaxFunction::apply(const VarPtr &input, int batch_size, int num_class
     Tensor out_tensor = softmax_forward(input->data, batch_size, num_classes);
     func->softmax_output = out_tensor; // Save computed output for backward.
 
-    auto out = make_shared<Variable>(out_tensor, input->requires_grad);
+    auto out = make_shared<Variable>(out_tensor, input->requires_grad, "Softmax_out");
     out->set_creator(func);
     func->inputs.push_back(input);
     func->output = out;

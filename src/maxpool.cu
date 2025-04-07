@@ -150,7 +150,7 @@ VarPtr MaxPool2DFunction::apply(const VarPtr &input,
     func->output_width = output_width;
     func->max_indices = max_indices;
 
-    auto out = make_shared<Variable>(out_tensor, input->requires_grad);
+    auto out = make_shared<Variable>(out_tensor, input->requires_grad, "Maxpool_out");
     out->set_creator(func);
     func->inputs.push_back(input);
     func->output = out;
