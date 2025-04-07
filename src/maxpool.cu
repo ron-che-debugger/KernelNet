@@ -109,8 +109,8 @@ Tensor maxpool_forward(const Tensor &input, int batch_size, int channels,
         const float *in_data = input.data(); // device pointer
         float *out_data = out_tensor.data(); // device pointer
 
-        int blockSize = 256;
-        int gridSize = (output_size + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((output_size + blockSize.x - 1) / blockSize.x);
         maxpool_forward_kernel<<<gridSize, blockSize>>>(in_data, out_data, d_max_indices,
                                                         batch_size, channels, input_height, input_width,
                                                         kernel_size, stride, output_height, output_width);
@@ -193,8 +193,8 @@ vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
         cudaMemcpy(d_max_indices, max_indices.data(), output_size * sizeof(int), cudaMemcpyHostToDevice);
 
         // Launch the kernel.
-        int blockSize = 256;
-        int gridSize = (output_size + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((output_size + blockSize.x - 1) / blockSize.x);
         maxpool_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_input.data(), d_max_indices, output_size);
         cudaDeviceSynchronize();
         cudaFree(d_max_indices);
