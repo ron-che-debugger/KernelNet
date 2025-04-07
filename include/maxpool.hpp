@@ -1,6 +1,5 @@
 #pragma once
 #include "module.hpp"
-#include "tensor.hpp"
 #include <cfloat>
 #include <cuda_runtime.h>
 #include <vector>
