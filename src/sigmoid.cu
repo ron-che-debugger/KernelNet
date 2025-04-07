@@ -2,6 +2,14 @@
 
 using namespace std;
 
+Sigmoid::Sigmoid() {
+    // Constructor (no internal state needed).
+}
+
+VarPtr Sigmoid::forward(const VarPtr &input) {
+    return SigmoidFunction::apply(input);
+}
+
 __global__ void sigmoid_forward_kernel(const float *in, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
@@ -64,12 +72,4 @@ vector<Tensor> SigmoidFunction::backward(const Tensor &grad_output) {
         cudaDeviceSynchronize();
     }
     return {grad_input};
-}
-
-Sigmoid::Sigmoid() {
-    // Constructor (no internal state needed).
-}
-
-VarPtr Sigmoid::forward(const VarPtr &input) {
-    return SigmoidFunction::apply(input);
 }
