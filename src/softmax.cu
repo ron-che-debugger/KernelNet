@@ -107,39 +107,80 @@ VarPtr SoftmaxFunction::apply(const VarPtr &input, int batch_size, int num_class
     return out;
 }
 
-// Softmax backward: compute dL/dx using:
-//   dL/dx_i = y_i * (dL/dy_i - sum_j (dL/dy_j * y_j))
+// CUDA kernel for softmax backward.
+// Each block processes one batch (row) of length num_classes.
+// It computes the dot product: dot = sum_j (grad_out[j] * y[j]) using a reduction
+// with a next power-of-two padded block size, then computes for each element:
+// grad_in[i] = y[i] * (grad_out[i] - dot)
+__global__ void softmax_backward_kernel(const float *grad_out, const float *y, float *grad_in, int num_classes) {
+    extern __shared__ float sdata[];
+    int tid = threadIdx.x;
+    int b = blockIdx.x; // one block per sample
+    int offset = b * num_classes;
+
+    // Load grad_out * y into shared memory (with padding for threads beyond num_classes).
+    float prod = (tid < num_classes) ? grad_out[offset + tid] * y[offset + tid] : 0.0f;
+    sdata[tid] = prod;
+    __syncthreads();
+
+    // Compute next power-of-two padded size.
+    int n = num_classes;
+    int s = 1;
+    while (s < n)
+        s *= 2;
+
+    // Reduction to compute the dot product.
+    for (int stride = s / 2; stride > 0; stride /= 2) {
+        if (tid < stride) {
+            if (tid + stride < n) {
+                sdata[tid] += sdata[tid + stride];
+            }
+        }
+        __syncthreads();
+    }
+    float dot = sdata[0];
+
+    // Compute gradient for each valid element.
+    if (tid < num_classes) {
+        grad_in[offset + tid] = y[offset + tid] * (grad_out[offset + tid] - dot);
+    }
+}
+
+Tensor softmax_backward(const Tensor &grad_output, const Tensor &y, int batch_size, int num_classes) {
+    Tensor grad_input(grad_output.size(), grad_output.device());
+    if (grad_output.device() == CPU) {
+        const float *grad_out_ptr = grad_output.data();
+        const float *y_ptr = y.data();
+        float *grad_in_ptr = grad_input.data();
+        for (int b = 0; b < batch_size; ++b) {
+            int offset = b * num_classes;
+            float dot = 0.0f;
+            for (int j = 0; j < num_classes; ++j) {
+                dot += grad_out_ptr[offset + j] * y_ptr[offset + j];
+            }
+            for (int i = 0; i < num_classes; ++i) {
+                grad_in_ptr[offset + i] = y_ptr[offset + i] * (grad_out_ptr[offset + i] - dot);
+            }
+        }
+    } else {
+        // Compute next power-of-two for block size.
+        int s = 1;
+        while (s < num_classes)
+            s *= 2;
+        dim3 gridSize(batch_size);
+        dim3 blockSize(s);
+        size_t sharedMemSize = s * sizeof(float);
+        softmax_backward_kernel<<<gridSize, blockSize, sharedMemSize>>>(grad_output.data(), y.data(), grad_input.data(), num_classes);
+        cudaDeviceSynchronize();
+    }
+    return grad_input;
+}
+
 vector<Tensor> SoftmaxFunction::backward(const Tensor &grad_output) {
-    // Ensure backward is computed on CPU.
-    Tensor grad_out_cpu = grad_output;
+    // For the backward pass, dispatch to our CUDA kernel if needed.
+    Tensor grad_in = softmax_backward(grad_output, softmax_output, batch_size, num_classes);
     if (grad_output.device() != CPU) {
-        grad_out_cpu.toCPU();
+        grad_in.toCUDA();
     }
-    Tensor y = softmax_output;
-    if (y.device() != CPU) {
-        y.toCPU();
-    }
-    int total = batch_size * num_classes;
-    Tensor grad_input(total, CPU);
-    float *grad_in_ptr = grad_input.data();
-    const float *grad_out_ptr = grad_out_cpu.data();
-    const float *y_ptr = y.data();
-
-    for (int b = 0; b < batch_size; ++b) {
-        int offset = b * num_classes;
-        float dot = 0.0f;
-        for (int j = 0; j < num_classes; ++j) {
-            dot += grad_out_ptr[offset + j] * y_ptr[offset + j];
-        }
-        for (int i = 0; i < num_classes; ++i) {
-            grad_in_ptr[offset + i] = y_ptr[offset + i] * (grad_out_ptr[offset + i] - dot);
-        }
-    }
-
-    // Convert grad_input back to CUDA if needed.
-    if (grad_output.device() != CPU) {
-        grad_input.toCUDA();
-    }
-
-    return {grad_input};
+    return {grad_in};
 }

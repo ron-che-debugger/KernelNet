@@ -158,30 +158,47 @@ VarPtr MaxPool2DFunction::apply(const VarPtr &input,
     return out;
 }
 
-vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
-    // Ensure backward is computed on CPU.
-    Tensor grad_out_cpu = grad_output;
-    if (grad_output.device() != CPU) {
-        grad_out_cpu.toCPU();
-    }
-
-    int input_size = batch_size * channels * input_height * input_width;
-    Tensor grad_input(input_size, CPU);
-    grad_input.fill(0.0f);
-
-    int output_size = batch_size * channels * output_height * output_width;
-    const float *grad_out_data = grad_out_cpu.data();
-    float *grad_in_data = grad_input.data();
-
-    // Propagate each output gradient to its corresponding max index.
-    for (int idx = 0; idx < output_size; ++idx) {
+__global__ void maxpool_backward_kernel(const float *grad_out, float *grad_in, const int *max_indices, int output_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < output_size) {
         int in_idx = max_indices[idx];
-        grad_in_data[in_idx] += grad_out_data[idx];
+        atomicAdd(&grad_in[in_idx], grad_out[idx]);
     }
+}
 
-    if (grad_output.device() != CPU) {
-        grad_input.toCUDA();
+vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
+    // If grad_output is on CPU, do the CPU implementation.
+    if (grad_output.device() == CPU) {
+        Tensor grad_input(batch_size * channels * input_height * input_width, CPU);
+        grad_input.fill(0.0f);
+        int output_size = batch_size * channels * output_height * output_width;
+        const float *grad_out_data = grad_output.data();
+        float *grad_in_data = grad_input.data();
+        for (int idx = 0; idx < output_size; ++idx) {
+            int in_idx = max_indices[idx];
+            grad_in_data[in_idx] += grad_out_data[idx];
+        }
+        return {grad_input};
+    } else {
+        // CUDA branch.
+        int output_size = batch_size * channels * output_height * output_width;
+        Tensor grad_input(output_size, CUDA); // Allocate on CUDA.
+        // But grad_input needs to have size = input size:
+        grad_input = Tensor(batch_size * channels * input_height * input_width, CUDA);
+        grad_input.fill(0.0f);
+
+        // Allocate device memory for max_indices.
+        int *d_max_indices;
+        cudaMalloc(&d_max_indices, output_size * sizeof(int));
+        cudaMemcpy(d_max_indices, max_indices.data(), output_size * sizeof(int), cudaMemcpyHostToDevice);
+
+        // Launch the kernel.
+        int blockSize = 256;
+        int gridSize = (output_size + blockSize - 1) / blockSize;
+        maxpool_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_input.data(), d_max_indices, output_size);
+        cudaDeviceSynchronize();
+        cudaFree(d_max_indices);
+
+        return {grad_input};
     }
-
-    return {grad_input};
 }
