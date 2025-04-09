@@ -52,7 +52,7 @@ TARGET = tensor_example.exe
 
 # Source files (adjust filenames as necessary)
 SOURCES = $(SRCDIR)/tensor.cu $(SRCDIR)/dense.cu $(SRCDIR)/conv2d.cu $(SRCDIR)/optimizer.cu $(SRCDIR)/autograd.cu\
-        $(SRCDIR)/maxpool.cu $(SRCDIR)/softmax.cu $(SRCDIR)/sigmoid.cu $(SRCDIR)/tanh.cu $(SRCDIR)/main.cpp
+        $(SRCDIR)/maxpool.cu $(SRCDIR)/softmax.cu $(SRCDIR)/sigmoid.cu $(SRCDIR)/tanh.cu $(SRCDIR)/slice.cu $(SRCDIR)/lstm.cu $(SRCDIR)/main.cpp
 
 # Object files
 CU_SOURCES = $(wildcard $(SRCDIR)/*.cu)

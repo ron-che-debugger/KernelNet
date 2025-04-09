@@ -61,6 +61,49 @@ void Variable::backward(const Tensor &grad_output) {
     }
 }
 
+/*
+void Variable::backward(const Tensor &grad_output) {
+    string name = debug_name.empty() ? ("@" + to_string((uintptr_t)this)) : debug_name;
+    cout << "[DEBUG] Enter backward for Variable " << name
+         << " | size: " << data.size() << endl;
+
+    if (requires_grad) {
+        if (!grad_initialized) {
+            grad = grad_output;
+            grad_initialized = true;
+            cout << "[DEBUG] Gradient initialized for Variable " << name << endl;
+        } else {
+            grad = Tensor::add(grad, grad_output);
+            cout << "[DEBUG] Gradient accumulated for Variable " << name << endl;
+        }
+
+        if (pending_count > 0)
+            pending_count--;
+        cout << "[DEBUG] Variable " << name << " pending_count now " << pending_count << endl;
+
+        if (creator && pending_count == 0) {
+            cout << "[DEBUG] Variable " << name << " has creator, invoking backward." << endl;
+            vector<Tensor> input_grads = creator->backward(grad);
+            cout << "[DEBUG] Creator backward returned for Variable " << name << endl;
+            for (size_t i = 0; i < creator->inputs.size(); ++i) {
+                if (auto inp = creator->inputs[i].lock()) {
+                    string inp_name = inp->debug_name.empty() ? ("@" + to_string((uintptr_t)inp.get())) : inp->debug_name;
+                    cout << "[DEBUG] Propagating to input " << i << " (Variable "
+                         << inp_name << ", size: " << inp->data.size() << ")" << endl;
+                    if (inp->requires_grad) {
+                        inp->backward(input_grads[i]);
+                    } else {
+                        cout << "[DEBUG] Skipped input " << i << " (no grad required)" << endl;
+                    }
+                } else {
+                    cout << "[ERROR] Input " << i << " is expired or null!" << endl;
+                }
+            }
+        }
+    }
+}
+*/
+
 VarPtr Variable::detach() {
     return make_shared<Variable>(data, false);
 }
