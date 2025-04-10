@@ -9,6 +9,7 @@ using namespace std;
 #define TEST_SINGLECONV2DLAYER
 #define TEST_SINGLECONV2DDENSE
 #define TEST_SIMPLECNN
+#define TEST_WRAPPERCNN
 #define TEST_SIGMOID
 #define TEST_TANH
 #define TEST_RELU
@@ -48,6 +49,10 @@ using namespace std;
 #include "./tests/simple_cnn_tests.hpp"
 #endif
 
+#ifdef TEST_WRAPPERCNN
+#include "./tests/wrapper_cnn_tests.hpp"
+#endif
+
 #ifdef TEST_SIGMOID
 #include "./tests/sigmoid_tests.hpp"
 #endif
@@ -71,6 +76,7 @@ using namespace std;
 #ifdef TEST_SEQUENTIALLSTM
 #include "./tests/sequential_lstm_tests.hpp"
 #endif
+
 
 int main() {
 #ifdef TEST_TENSORS
@@ -111,6 +117,11 @@ int main() {
 #ifdef TEST_SIMPLECNN
     cout << "\n===== Running Simple CNN Tests =====" << endl;
     runSimpleCnnTests();
+#endif
+
+#ifdef TEST_WRAPPERCNN
+    cout << "\n===== Running Wrapper CNN Tests =====" << endl;
+    runWrapperCnnTests();
 #endif
 
 #ifdef TEST_SIGMOID
