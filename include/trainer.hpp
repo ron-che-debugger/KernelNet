@@ -1,10 +1,19 @@
 #pragma once
 
+#include "autograd.hpp"
 #include "module.hpp"
 #include "optimizer.hpp"
 #include <cassert>
+#include <functional>
+#include <memory>
+#include <vector>
 
 using namespace std;
+
+// Define a loss function type alias:
+// It takes a prediction (VarPtr) and a target Tensor reference,
+// and returns a VarPtr representing the loss.
+using LossFunction = std::function<VarPtr(const VarPtr &, const Tensor &)>;
 
 class Trainer {
   public:
@@ -12,10 +21,14 @@ class Trainer {
     shared_ptr<Module> model;
     // Optimizer, e.g. SGD.
     SGD optimizer;
+    // Loss function to compute the loss during training.
+    LossFunction loss_fn;
 
-    // Constructor: takes a model and an optimizer.
-    Trainer(const shared_ptr<Module> &model, const SGD &optimizer)
-        : model(model), optimizer(optimizer) {}
+    // Constructor: takes a model, an optimizer, and optionally a loss function.
+    // Default loss function is MSEFunction::apply.
+    Trainer(const shared_ptr<Module> &model, const SGD &optimizer,
+            LossFunction loss_fn = MSEFunction::apply)
+        : model(model), optimizer(optimizer), loss_fn(loss_fn) {}
 
     // Train the model for one epoch.
     // Here, inputs and targets are assumed to be provided as vectors of VarPtr.
@@ -29,10 +42,9 @@ class Trainer {
             vector<VarPtr> prediction_vec = model->forward({inputs[i]});
             VarPtr prediction = prediction_vec.front();
 
-            // Compute the loss (using MSE as an example).
-            // Note: MSEFunction::apply is assumed to take (prediction, target Tensor).
-            // If target is a Variable, use target->data.
-            VarPtr loss = MSEFunction::apply(prediction, targets[i]->data);
+            // Compute the loss using the configured loss function.
+            // We assume that the target variable stores a tensor in its 'data' member.
+            VarPtr loss = loss_fn(prediction, targets[i]->data);
 
             // Backward pass to compute gradients.
             loss->backward(loss->data);
