@@ -10,6 +10,7 @@ using namespace std;
 #define TEST_SINGLECONV2DDENSE
 #define TEST_SIMPLECNN
 #define TEST_WRAPPERCNN
+#define TEST_WRAPPERCNNCN
 #define TEST_SIGMOID
 #define TEST_TANH
 #define TEST_RELU
@@ -52,6 +53,10 @@ using namespace std;
 
 #ifdef TEST_WRAPPERCNN
 #include "./tests/wrapper_cnn_tests.hpp"
+#endif
+
+#ifdef TEST_WRAPPERCNNCN
+#include "./tests/wrapper_cnn_cn_tests.hpp"
 #endif
 
 #ifdef TEST_SIGMOID
@@ -124,8 +129,13 @@ int main() {
 #endif
 
 #ifdef TEST_WRAPPERCNN
-    cout << "\n===== Running Wrapper CNN Tests =====" << endl;
+    cout << "\n===== Running Wrapper CNN (Loss: MSE) Tests =====" << endl;
     runWrapperCnnTests();
+#endif
+
+#ifdef TEST_WRAPPERCNNCN
+    cout << "\n===== Running Wrapper CNN (Loss: Cross-Entropy) Tests =====" << endl;
+    runWrapperCnnCnTests();
 #endif
 
 #ifdef TEST_SIGMOID
