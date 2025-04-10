@@ -103,7 +103,20 @@ class SumFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+class LogFunction : public Function {
+  public:
+    VarPtr saved_input;
+    static VarPtr apply(const VarPtr &input);
+
+    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+};
+
 class MSEFunction : public Function {
+  public:
+    static VarPtr apply(const VarPtr &prediction, const Tensor &target);
+};
+
+class CrossEntropyLossFunction : public Function {
   public:
     static VarPtr apply(const VarPtr &prediction, const Tensor &target);
 };

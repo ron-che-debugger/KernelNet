@@ -306,6 +306,77 @@ vector<Tensor> SumFunction::backward(const Tensor &grad_output) {
     return {grad_input};
 }
 
+// ---------- LogFunction Implementation ----------
+// Kernel for the forward pass: compute element-wise log.
+__global__ void log_forward_kernel(const float *in, float *out, size_t size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        out[idx] = logf(in[idx]);
+    }
+}
+
+// Kernel for the backward pass: compute derivative of log (1/x) multiplied by grad_output.
+__global__ void log_backward_kernel(const float *grad_out, const float *in, float *grad_in, size_t size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        grad_in[idx] = grad_out[idx] / in[idx];
+    }
+}
+
+// ---------- LogFunction Implementation ----------
+
+VarPtr LogFunction::apply(const VarPtr &input) {
+    // Create an instance of LogFunction to hold saved state.
+    auto func = make_shared<LogFunction>();
+
+    // Save input for backward computation.
+    func->saved_input = input;
+    func->inputs.push_back(input);
+
+    size_t size = input->data.size();
+    // Allocate an output tensor on the same device as the input.
+    Tensor out_tensor(size, input->data.device());
+
+    if (input->data.device() == CPU) {
+        const float *in_ptr = input->data.data();
+        float *out_ptr = out_tensor.data();
+        for (size_t i = 0; i < size; i++) {
+            out_ptr[i] = logf(in_ptr[i]);
+        }
+    } else {
+        int blockSize = 256;
+        int gridSize = (size + blockSize - 1) / blockSize;
+        log_forward_kernel<<<gridSize, blockSize>>>(input->data.data(), out_tensor.data(), size);
+        cudaDeviceSynchronize();
+    }
+
+    bool req_grad = input->requires_grad;
+    auto out = make_shared<Variable>(out_tensor, req_grad, "Log_out");
+    out->set_creator(func);
+    func->output = out;
+    return out;
+}
+
+vector<Tensor> LogFunction::backward(const Tensor &grad_output) {
+    size_t size = grad_output.size();
+    Tensor grad_input(size, grad_output.device());
+
+    if (grad_output.device() == CPU) {
+        const float *grad_out_ptr = grad_output.data();
+        const float *in_ptr = saved_input->data.data();
+        float *grad_in_ptr = grad_input.data();
+        for (size_t i = 0; i < size; i++) {
+            grad_in_ptr[i] = grad_out_ptr[i] / in_ptr[i];
+        }
+    } else {
+        int blockSize = 256;
+        int gridSize = (size + blockSize - 1) / blockSize;
+        log_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), saved_input->data.data(), grad_input.data(), size);
+        cudaDeviceSynchronize();
+    }
+    return {grad_input};
+}
+
 // ---------- MSEFunction Implementation ----------
 
 VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
@@ -324,6 +395,38 @@ VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
     auto mse_loss = MultiplyFunction::apply(sum_loss, scale);
     mse_loss->debug_name = "mse_loss";
     return mse_loss;
+}
+
+// ---------- CrossEntropyLossFunction Implementation ----------
+
+// Implementation of the cross-entropy loss function.
+VarPtr CrossEntropyLossFunction::apply(const VarPtr &prediction, const Tensor &target) {
+    // Wrap the target Tensor in a Variable (no gradient tracking).
+    auto target_var = make_shared<Variable>(target, false, "target");
+
+    // Compute element-wise natural logarithm of the predictions.
+    // We assume LogFunction::apply exists and works similar to TanhFunction::apply.
+    auto log_pred = LogFunction::apply(prediction);
+    log_pred->debug_name = "log_pred";
+
+    // Multiply element-wise: target ⊙ log(prediction)
+    auto prod = MultiplyFunction::apply(target_var, log_pred);
+    prod->debug_name = "prod";
+
+    // Sum over all elements (this aggregates the loss across all dimensions).
+    auto sum_loss = SumFunction::apply(prod);
+    sum_loss->debug_name = "sum_loss";
+
+    // Create a scalar tensor of value -1 on the same device as sum_loss.
+    Tensor neg_tensor(1, sum_loss->data.device());
+    neg_tensor.fill(-1.0f);
+    auto neg_one = make_shared<Variable>(neg_tensor, false, "neg_one");
+
+    // Multiply with -1 to get: loss = - Sum(target ⊙ log(prediction))
+    auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, neg_one);
+    cross_entropy_loss->debug_name = "cross_entropy_loss";
+
+    return cross_entropy_loss;
 }
 
 // CUDA kernel for the forward pass.

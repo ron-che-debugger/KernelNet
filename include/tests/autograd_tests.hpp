@@ -124,6 +124,23 @@ inline void runAutogradTestsCPU() {
     }
     cout << endl;
 
+    // --- Test LogFunction Autograd ---
+    cout << "\n=== Test LogFunction Autograd ===" << endl;
+    Tensor logTensor(5, CPU);
+    for (int i = 0; i < logTensor.size(); i++) {
+        logTensor.data()[i] = 2.0f; // Use a value > 0 (log defined)
+    }
+    auto varLog = make_shared<Variable>(logTensor, true, "log_input");
+    auto varLogResult = LogFunction::apply(varLog);
+    cout << "Forward (Log): " << endl;
+    varLogResult->data.print(); // Expected: log(2) ~ 0.6931 for each element
+
+    Tensor gradLog(varLogResult->data.size(), CPU);
+    gradLog.fill(1.0f); // Upstream gradients set to 1
+    varLogResult->backward(gradLog);
+    cout << "Backward (gradients for log_input): " << endl;
+    varLog->grad.print(); // Expected: 1/2 = 0.5 for each element
+
     // --- Test MSE Function Autograd ---
     cout << "\n=== Test MSE Function Autograd ===" << endl;
     Tensor msePredTensor(5, CPU);
@@ -141,6 +158,40 @@ inline void runAutogradTestsCPU() {
         cout << varMsePred->grad.data()[i] << " ";
     }
     cout << endl;
+
+    // --- Test CrossEntropyLossFunction Autograd (CPU) ---
+    cout << "\n=== Test CrossEntropyLossFunction Autograd ===" << endl;
+
+    // Create a tensor for prediction with two elements: [0.1, 0.9]
+    Tensor cePredTensor(2, CPU);
+    cePredTensor.data()[0] = 0.1f;
+    cePredTensor.data()[1] = 0.9f;
+    // Create a target tensor (one-hot for class 1): [0, 1]
+    Tensor ceTargetTensor(2, CPU);
+    ceTargetTensor.data()[0] = 0.0f;
+    ceTargetTensor.data()[1] = 1.0f;
+
+    // Wrap the prediction in a Variable (requires grad).
+    auto varCePred = make_shared<Variable>(cePredTensor, true, "ce_pred");
+
+    // Apply the cross-entropy loss function.
+    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor);
+
+    // Print the forward loss.
+    cout << "Forward (CrossEntropy loss): "
+         << ceLoss->data.data()[0]
+         << " (expected ~ " << -logf(0.9f) << ")" << endl;
+
+    // Create a grad output tensor (ones) for backward propagation.
+    Tensor gradCELoss(ceLoss->data.size(), CPU);
+    gradCELoss.fill(1.0f);
+
+    // Run backward pass.
+    ceLoss->backward(gradCELoss);
+
+    // Print the gradient for the prediction.
+    cout << "Backward (gradients for ce_pred):" << endl;
+    varCePred->grad.print();
 }
 
 // ===== CUDA-specific Autograd Tests =====
@@ -276,6 +327,26 @@ inline void runAutogradTestsCUDA() {
     }
     cout << endl;
 
+    // --- Test LogFunction Autograd ---
+    cout << "\n=== Test LogFunction Autograd ===" << endl;
+    Tensor logTensor(5, CPU);
+    for (int i = 0; i < logTensor.size(); i++) {
+        logTensor.data()[i] = 2.0f;
+    }
+    logTensor.toCUDA();
+    auto varLog = make_shared<Variable>(logTensor, true, "log_input_cuda");
+    auto varLogResult = LogFunction::apply(varLog);
+    varLogResult->data.toCPU();
+    cout << "Forward (Log): " << endl;
+    varLogResult->data.print(); // Expected: ~0.6931 for each element
+
+    Tensor gradLog(varLogResult->data.size(), CUDA);
+    gradLog.fill(1.0f);
+    varLogResult->backward(gradLog);
+    varLog->grad.toCPU();
+    cout << "Backward (gradients for log_input): " << endl;
+    varLog->grad.print(); // Expected: 0.5 for each element
+
     // --- Test MSE Function Autograd ---
     cout << "\n=== Test MSE Function Autograd ===" << endl;
     Tensor msePredTensor(5, CPU);
@@ -297,6 +368,45 @@ inline void runAutogradTestsCUDA() {
         cout << varMsePred->grad.data()[i] << " ";
     }
     cout << endl;
+
+    // --- Test CrossEntropyLossFunction Autograd ---
+    cout << "\n=== Test CrossEntropyLossFunction Autograd ===" << endl;
+
+    // Create a tensor for prediction on CPU and then move to CUDA.
+    Tensor cePredTensor(2, CPU);
+    cePredTensor.data()[0] = 0.1f;
+    cePredTensor.data()[1] = 0.9f;
+    cePredTensor.toCUDA();
+
+    // Create a target tensor (one-hot for class 1) on CPU, then move it to CUDA.
+    Tensor ceTargetTensor(2, CPU);
+    ceTargetTensor.data()[0] = 0.0f;
+    ceTargetTensor.data()[1] = 1.0f;
+    ceTargetTensor.toCUDA();
+
+    // Wrap the prediction in a Variable (requires grad).
+    auto varCePred = make_shared<Variable>(cePredTensor, true, "ce_pred_cuda");
+
+    // Apply the cross-entropy loss function.
+    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor);
+
+    // Move forward loss back to CPU to print.
+    ceLoss->data.toCPU();
+    cout << "Forward (CrossEntropy loss): "
+         << ceLoss->data.data()[0]
+         << " (expected ~ " << -logf(0.9f) << ")" << endl;
+
+    // Create grad output on CUDA.
+    Tensor gradCELoss(ceLoss->data.size(), CUDA);
+    gradCELoss.fill(1.0f);
+
+    // Run backward pass.
+    ceLoss->backward(gradCELoss);
+
+    // Bring gradients back to CPU for printing.
+    varCePred->grad.toCPU();
+    cout << "Backward (gradients for ce_pred):" << endl;
+    varCePred->grad.print();
 }
 
 inline void runAutogradTests() {
