@@ -2,7 +2,6 @@
 #include "autograd.hpp"
 #include "lstm.hpp"
 #include "single_input_module.hpp"
-#include "slice.hpp"
 #include "tensor.hpp"
 #include <cassert>
 

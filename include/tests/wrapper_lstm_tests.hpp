@@ -5,7 +5,6 @@
 #include "lstm_wrapper.hpp" // Our new LSTM wrapper module
 #include "optimizer.hpp"    // SGD optimizer
 #include "sequential.hpp"   // Our new sequential container
-#include "slice.hpp"        // For slicing (assumed to exist)
 #include "trainer.hpp"      // Our trainer module
 
 using namespace std;

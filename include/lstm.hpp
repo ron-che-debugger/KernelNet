@@ -2,7 +2,6 @@
 #include "autograd.hpp"
 #include "module.hpp"
 #include "sigmoid.hpp"
-#include "slice.hpp"
 #include "tanh.hpp"
 #include "tensor.hpp"
 #include <cmath>

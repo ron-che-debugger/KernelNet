@@ -1,6 +1,6 @@
 #pragma once
-#include "slice.hpp"
-#include "tensor.hpp"
+
+#include "autograd.hpp"
 #include <iostream>
 #include <memory>
 #include <vector>
