@@ -11,6 +11,7 @@ using namespace std;
 #define TEST_SIMPLECNN
 #define TEST_SIGMOID
 #define TEST_TANH
+#define TEST_RELU
 #define TEST_SLICE
 #define TEST_SINGLELSTMCELL
 #define TEST_SEQUENTIALLSTM
@@ -53,6 +54,10 @@ using namespace std;
 
 #ifdef TEST_TANH
 #include "./tests/tanh_tests.hpp"
+#endif
+
+#ifdef TEST_RELU
+#include "./tests/relu_tests.hpp"
 #endif
 
 #ifdef TEST_SLICE
@@ -116,6 +121,11 @@ int main() {
 #ifdef TEST_TANH
     cout << "\n===== Running Tanh Tests =====" << endl;
     runTanhTests();
+#endif
+
+#ifdef TEST_RELU
+    cout << "\n===== Running Relu Tests =====" << endl;
+    runReluTests();
 #endif
 
 #ifdef TEST_SLICE
