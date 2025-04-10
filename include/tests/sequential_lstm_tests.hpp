@@ -77,11 +77,16 @@ inline void runSeqLSTMTests() {
             VarPtr current_hidden;
             for (int t = 0; t < sequence_length; t++) {
                 int offset = t * input_dim;
+                // Assume SliceFunction::apply returns a single VarPtr for the given slice.
                 VarPtr x_t = SliceFunction::apply(input_var, batch_size, offset, offset + input_dim);
-                LSTMState state = lstm.forward(x_t, h_prev, c_prev);
-                h_prev = state.h;
-                c_prev = state.c;
-                current_hidden = state.h;
+                // Pack the three inputs as a vector for the LSTMCell.
+                vector<VarPtr> lstm_inputs = {x_t, h_prev, c_prev};
+                // Call the LSTMCell's forward method (which now returns a vector of outputs).
+                vector<VarPtr> lstm_outputs = lstm.forward(lstm_inputs);
+                // Extract new hidden and cell states.
+                h_prev = lstm_outputs[0];
+                c_prev = lstm_outputs[1];
+                current_hidden = h_prev;
             }
             // Final hidden state goes through Dense layer.
             VarPtr output = fc.forward(current_hidden);
@@ -114,10 +119,11 @@ inline void runSeqLSTMTests() {
         for (int t = 0; t < sequence_length; t++) {
             int offset = t * input_dim;
             VarPtr x_t = SliceFunction::apply(input_var, batch_size, offset, offset + input_dim);
-            LSTMState state = lstm.forward(x_t, h_prev_eval, c_prev_eval);
-            h_prev_eval = state.h;
-            c_prev_eval = state.c;
-            current_hidden = state.h;
+            vector<VarPtr> lstm_inputs = {x_t, h_prev_eval, c_prev_eval};
+            vector<VarPtr> lstm_outputs = lstm.forward(lstm_inputs);
+            h_prev_eval = lstm_outputs[0];
+            c_prev_eval = lstm_outputs[1];
+            current_hidden = h_prev_eval;
         }
         // Get final prediction.
         VarPtr final_pred = fc.forward(current_hidden);
@@ -171,10 +177,11 @@ inline void runSeqLSTMTests() {
             for (int t = 0; t < sequence_length; t++) {
                 int offset = t * input_dim;
                 VarPtr x_t = SliceFunction::apply(input_var, batch_size, offset, offset + input_dim);
-                LSTMState state = lstm.forward(x_t, h_prev, c_prev);
-                h_prev = state.h;
-                c_prev = state.c;
-                current_hidden = state.h;
+                vector<VarPtr> lstm_inputs = {x_t, h_prev, c_prev};
+                vector<VarPtr> lstm_outputs = lstm.forward(lstm_inputs);
+                h_prev = lstm_outputs[0];
+                c_prev = lstm_outputs[1];
+                current_hidden = h_prev;
             }
             VarPtr output = fc.forward(current_hidden);
             VarPtr loss = MSEFunction::apply(output, target_data);
@@ -184,7 +191,7 @@ inline void runSeqLSTMTests() {
             optimizer.zero_grad();
 
             if (epoch % 100 == 0) {
-                loss->data.toCPU(); // move loss to CPU to print
+                loss->data.toCPU();
                 cout << "Epoch " << epoch << " Loss: " << loss->data.data()[0] << endl;
             }
         }
@@ -202,10 +209,11 @@ inline void runSeqLSTMTests() {
         for (int t = 0; t < sequence_length; t++) {
             int offset = t * input_dim;
             VarPtr x_t = SliceFunction::apply(input_var, batch_size, offset, offset + input_dim);
-            LSTMState state = lstm.forward(x_t, h_prev_eval, c_prev_eval);
-            h_prev_eval = state.h;
-            c_prev_eval = state.c;
-            current_hidden = state.h;
+            vector<VarPtr> lstm_inputs = {x_t, h_prev_eval, c_prev_eval};
+            vector<VarPtr> lstm_outputs = lstm.forward(lstm_inputs);
+            h_prev_eval = lstm_outputs[0];
+            c_prev_eval = lstm_outputs[1];
+            current_hidden = h_prev_eval;
         }
         VarPtr final_pred = fc.forward(current_hidden);
         final_pred->data.toCPU();

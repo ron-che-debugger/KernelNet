@@ -1,5 +1,5 @@
 #pragma once
-#include "module.hpp"
+#include "single_input_module.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cuda_runtime.h>
@@ -19,13 +19,15 @@ class SoftmaxFunction : public Function {
     static VarPtr apply(const VarPtr &input, int batch_size, int num_classes);
 
     // Backward pass: given grad_output, compute grad_input.
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-class Softmax : public Module {
+class Softmax : public SingleInputModule {
+    using SingleInputModule::forward;
+
   public:
     int batch_size, num_classes;
 
     Softmax(int batch_size, int num_classes);
-    VarPtr forward(const VarPtr &input);
+    VarPtr forward(const VarPtr &input) override;
 };

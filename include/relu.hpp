@@ -1,13 +1,13 @@
 #pragma once
-#include "module.hpp"
+#include "single_input_module.hpp"
+#include <cmath>
 #include <cuda_runtime.h>
 #include <vector>
-#include <cmath>
 
 using namespace std;
 
 class ReLUFunction : public Function {
-public:
+  public:
     VarPtr saved_input;
     Tensor relu_output;
 
@@ -18,8 +18,9 @@ public:
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-class ReLU : public Module {
-public:
+class ReLU : public SingleInputModule {
+  public:
+    using SingleInputModule::forward;
     ReLU();
-    VarPtr forward(const VarPtr &input);
+    VarPtr forward(const VarPtr &input) override;
 };

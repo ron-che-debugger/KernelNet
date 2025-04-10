@@ -1,5 +1,5 @@
 #pragma once
-#include "module.hpp"
+#include "single_input_module.hpp"
 #include <cmath>
 #include <cuda_runtime.h>
 #include <vector>
@@ -18,8 +18,9 @@ class SigmoidFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-class Sigmoid : public Module {
+class Sigmoid : public SingleInputModule {
   public:
+    using SingleInputModule::forward;
     Sigmoid();
-    VarPtr forward(const VarPtr &input);
+    VarPtr forward(const VarPtr &input) override;
 };

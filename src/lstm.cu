@@ -413,15 +413,17 @@ LSTMCell::LSTMCell(int input_dim, int hidden_dim, Device device)
     bias_hh = make_shared<Variable>(b_hh, true, "bias_hh");
 }
 
-LSTMState LSTMCell::forward(const VarPtr &input, const VarPtr &h_prev, const VarPtr &c_prev) {
-    auto outputs = LSTMCellFunction::apply(input, h_prev, c_prev,
+vector<VarPtr> LSTMCell::forward(const vector<VarPtr> &inputs) {
+    // Make sure exactly three inputs are provided.
+    assert(inputs.size() == 3 && "LSTMCell expects exactly three inputs: {input, h_prev, c_prev}");
+
+    // Use our LSTMCellFunction::apply method. This function returns a pair {h_new, c_new}.
+    auto outputs = LSTMCellFunction::apply(inputs[0], inputs[1], inputs[2],
                                            weight_ih, weight_hh,
                                            bias_ih, bias_hh,
                                            input_dim, hidden_dim);
-    LSTMState state;
-    state.h = outputs.first;
-    state.c = outputs.second;
-    return state;
+    // Return both outputs as a vector.
+    return {outputs.first, outputs.second};
 }
 
 vector<VarPtr> LSTMCell::parameters() {

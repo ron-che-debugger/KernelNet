@@ -65,7 +65,12 @@ inline void runSingleLSTMCellTests() {
     }
 
     // Run forward pass.
-    LSTMState state_cpu = lstm_cpu.forward(input_var_cpu, h_prev_var_cpu, c_prev_var_cpu);
+    // Pack inputs into a vector.
+    vector<VarPtr> lstm_inputs_cpu = {input_var_cpu, h_prev_var_cpu, c_prev_var_cpu};
+    vector<VarPtr> lstm_outputs_cpu = lstm_cpu.forward(lstm_inputs_cpu);
+    LSTMState state_cpu;
+    state_cpu.h = lstm_outputs_cpu[0];
+    state_cpu.c = lstm_outputs_cpu[1];
 
     cout << "Expected h (CPU): " << expected_h << ", Expected c (CPU): " << expected_c << endl;
     cout << "Computed h (CPU): ";
@@ -117,7 +122,11 @@ inline void runSingleLSTMCellTests() {
     }
 
     // Run forward pass on CUDA.
-    LSTMState state_cuda = lstm_cuda.forward(input_var_cuda, h_prev_var_cuda, c_prev_var_cuda);
+    vector<VarPtr> lstm_inputs_cuda = {input_var_cuda, h_prev_var_cuda, c_prev_var_cuda};
+    vector<VarPtr> lstm_outputs_cuda = lstm_cuda.forward(lstm_inputs_cuda);
+    LSTMState state_cuda;
+    state_cuda.h = lstm_outputs_cuda[0];
+    state_cuda.c = lstm_outputs_cuda[1];
 
     // Move results to CPU for printing.
     state_cuda.h->data.toCPU();

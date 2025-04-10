@@ -1,5 +1,5 @@
 #pragma once
-#include "module.hpp"
+#include "single_input_module.hpp"
 #include <cfloat>
 #include <cuda_runtime.h>
 #include <vector>
@@ -27,8 +27,9 @@ class MaxPool2DFunction : public Function {
     virtual vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
-class MaxPool2D : public Module {
+class MaxPool2D : public SingleInputModule {
   public:
+    using SingleInputModule::forward;
     int kernel_size, stride;
     int batch_size, channels, input_height, input_width;
 
@@ -37,5 +38,5 @@ class MaxPool2D : public Module {
               int batch_size, int channels,
               int input_height, int input_width);
 
-    VarPtr forward(const VarPtr &input);
+    VarPtr forward(const VarPtr &input) override;
 };

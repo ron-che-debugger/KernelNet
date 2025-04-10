@@ -11,12 +11,12 @@ inline void runReluTests() {
     // For example, a tensor of size 5.
     size_t size = 5;
     Tensor input_cpu(size, CPU);
-    float* cpu_data = input_cpu.data();
+    float *cpu_data = input_cpu.data();
     cpu_data[0] = -1.0f;
-    cpu_data[1] =  0.0f;
-    cpu_data[2] =  1.0f;
+    cpu_data[1] = 0.0f;
+    cpu_data[2] = 1.0f;
     cpu_data[3] = -2.0f;
-    cpu_data[4] =  2.0f;
+    cpu_data[4] = 2.0f;
 
     // Wrap the tensor in a Variable (on CPU).
     VarPtr input_var_cpu = make_shared<Variable>(input_cpu, false, "relu_input_cpu");
@@ -30,7 +30,7 @@ inline void runReluTests() {
 
     cout << "Expected Output (CPU): 0 0 1 0 2" << endl;
     cout << "ReLU Output (CPU): ";
-    const float* cpu_out = output_cpu.data();
+    const float *cpu_out = output_cpu.data();
     for (size_t i = 0; i < size; i++) {
         cout << cpu_out[i] << " ";
     }
@@ -40,12 +40,12 @@ inline void runReluTests() {
     cout << "===== Running ReLU Test on CUDA =====" << endl;
     // Create a CPU tensor and initialize the same values, then transfer it to CUDA.
     Tensor input_cuda(size, CPU);
-    float* cuda_data = input_cuda.data();
+    float *cuda_data = input_cuda.data();
     cuda_data[0] = -1.0f;
-    cuda_data[1] =  0.0f;
-    cuda_data[2] =  1.0f;
+    cuda_data[1] = 0.0f;
+    cuda_data[2] = 1.0f;
     cuda_data[3] = -2.0f;
-    cuda_data[4] =  2.0f;
+    cuda_data[4] = 2.0f;
     input_cuda.toCUDA();
 
     VarPtr input_var_cuda = make_shared<Variable>(input_cuda, false, "relu_input_cuda");
@@ -58,7 +58,7 @@ inline void runReluTests() {
 
     cout << "Expected Output (CUDA): 0 0 1 0 2" << endl;
     cout << "ReLU Output (CUDA): ";
-    const float* cuda_out = output_cuda.data();
+    const float *cuda_out = output_cuda.data();
     for (size_t i = 0; i < size; i++) {
         cout << cuda_out[i] << " ";
     }

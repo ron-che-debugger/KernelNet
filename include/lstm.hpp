@@ -78,7 +78,10 @@ class LSTMCell : public Module {
     LSTMCell(int input_dim, int hidden_dim, Device device = CPU);
 
     // Forward pass: returns new hidden and cell states.
-    LSTMState forward(const VarPtr &input, const VarPtr &h_prev, const VarPtr &c_prev);
+    // Update the forward pass to conform to the unified interface.
+    // Expects a vector of exactly three inputs: {input, h_prev, c_prev}.
+    // Returns a vector of two outputs: {h_new, c_new}.
+    vector<VarPtr> forward(const vector<VarPtr> &inputs) override;
 
-    virtual vector<VarPtr> parameters() override;
+    vector<VarPtr> parameters() override;
 };

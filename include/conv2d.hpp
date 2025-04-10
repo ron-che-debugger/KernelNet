@@ -1,6 +1,6 @@
 #pragma once
 
-#include "module.hpp"
+#include "single_input_module.hpp"
 #include <cassert>
 #include <cmath>
 #include <cuda_runtime.h>
@@ -8,8 +8,10 @@
 
 using namespace std;
 
-class Conv2D : public Module {
+class Conv2D : public SingleInputModule {
   public:
+    using SingleInputModule::forward;
+
     VarPtr weight; // Shape: (out_channels, in_channels, kernel_h, kernel_w)
     VarPtr bias;   // Shape: (out_channels)
     int in_channels, out_channels, kernel_h, kernel_w;
@@ -19,7 +21,7 @@ class Conv2D : public Module {
     Conv2D(int in_channels, int out_channels, int kernel_h, int kernel_w,
            int input_height, int input_width, int stride = 1, int padding = 0, Device device = Device::CPU);
 
-    VarPtr forward(const VarPtr &input);
+    VarPtr forward(const VarPtr &input) override;
 
     vector<VarPtr> parameters() override;
 };

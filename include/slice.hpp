@@ -29,5 +29,5 @@ class SliceFunction : public Function {
 
     // Backward pass: maps the gradients from the sliced output back to the corresponding
     // indices of the input tensor, filling the positions outside the slice with zeros.
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
