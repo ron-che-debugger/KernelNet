@@ -6,31 +6,6 @@
 
 using namespace std;
 
-// Helper: Generate synthetic sequential data.
-//   - Each sample is a sequence of length `sequence_length`
-//   - Each time step is a vector of dimension `input_dim`.
-//   - Target is defined as the sum over all elements in the sequence.
-inline void generateSequenceData(int batch_size, int sequence_length, int input_dim,
-                                 Tensor &input, Tensor &target) {
-    int total_elems = batch_size * sequence_length * input_dim;
-    input = Tensor(total_elems, CPU);
-    target = Tensor(batch_size, CPU);
-    float *in_data = input.data();
-    float *tgt_data = target.data();
-    for (int b = 0; b < batch_size; b++) {
-        float sum = 0.0f;
-        for (int t = 0; t < sequence_length; t++) {
-            for (int d = 0; d < input_dim; d++) {
-                int idx = b * (sequence_length * input_dim) + t * input_dim + d;
-                // For example, set each time step to t+1.
-                in_data[idx] = static_cast<float>(t + 1);
-                sum += in_data[idx];
-            }
-        }
-        tgt_data[b] = sum;
-    }
-}
-
 inline void runSeqLSTMTests() {
     // Common training settings.
     int batch_size = 4;
