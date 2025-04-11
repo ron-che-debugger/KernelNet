@@ -49,7 +49,7 @@ inline void runWrapperCnnTests() {
         // Build a Sequential container by listing the layers.
         // Note that we store the model as a Sequential pointer so that we can call
         // the convenience single-argument forward.
-        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             conv1, pool1, conv2, pool2, dense, softmax});
 
         // Create SGD optimizer using the parameters collected from the Sequential container.
@@ -124,7 +124,7 @@ inline void runWrapperCnnTests() {
         auto dense = make_shared<Dense>(4, 2, dev);
         auto softmax = make_shared<Softmax>(batch_size, num_classes);
 
-        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             conv1, pool1, conv2, pool2, dense, softmax});
 
         // Collect parameters from the model.

@@ -90,6 +90,20 @@ inline void runTensorTests() {
         cout << endl;
     }
 
+    // ===== Test argmax on CPU =====
+
+    cout << "Testing argmax on CPU:" << endl;
+    // Create a tensor with known values.
+    Tensor argmax_cpu(5, CPU);
+    float *argmax_data = argmax_cpu.data();
+    argmax_data[0] = 1.0f;
+    argmax_data[1] = 3.0f;
+    argmax_data[2] = 2.0f;
+    argmax_data[3] = 0.5f;
+    argmax_data[4] = 3.0f; // In case of a tie, we assume the first occurrence is returned.
+    int index_cpu = argmax_cpu.argmax();
+    cout << "Argmax index (CPU): " << index_cpu << " (expected: 1)" << endl;
+
     // ========= CUDA Tests =========
     cout << "\n===== Testing on CUDA =====" << endl;
 
@@ -171,6 +185,19 @@ inline void runTensorTests() {
         }
         cout << endl;
     }
+    // ===== Test argmax on CUDA =====
+
+    cout << "Testing argmax on CUDA:" << endl;
+    Tensor argmax_cuda(5, CPU);
+    float *argmax_cuda_data = argmax_cuda.data();
+    argmax_cuda_data[0] = 1.0f;
+    argmax_cuda_data[1] = 3.0f;
+    argmax_cuda_data[2] = 2.0f;
+    argmax_cuda_data[3] = 0.5f;
+    argmax_cuda_data[4] = 3.0f; // Tie: expect first occurrence
+    argmax_cuda.toCUDA();
+    int index_cuda = argmax_cuda.argmax();
+    cout << "Argmax index (CUDA): " << index_cuda << " (expected: 1)" << endl;
 }
 
 #endif // TENSOR_TESTS_HPP

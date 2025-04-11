@@ -310,16 +310,17 @@ vector<Tensor> SumFunction::backward(const Tensor &grad_output) {
 // Kernel for the forward pass: compute element-wise log.
 __global__ void log_forward_kernel(const float *in, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const float epsilon = 1e-8f;
     if (idx < size) {
-        out[idx] = logf(in[idx]);
+        out[idx] = logf(in[idx] + epsilon);
     }
 }
-
 // Kernel for the backward pass: compute derivative of log (1/x) multiplied by grad_output.
 __global__ void log_backward_kernel(const float *grad_out, const float *in, float *grad_in, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const float epsilon = 1e-8f;
     if (idx < size) {
-        grad_in[idx] = grad_out[idx] / in[idx];
+        grad_in[idx] = grad_out[idx] / (in[idx] + epsilon);
     }
 }
 
@@ -341,11 +342,11 @@ VarPtr LogFunction::apply(const VarPtr &input) {
         const float *in_ptr = input->data.data();
         float *out_ptr = out_tensor.data();
         for (size_t i = 0; i < size; i++) {
-            out_ptr[i] = logf(in_ptr[i]);
+            out_ptr[i] = logf(in_ptr[i] + 1e-8f);
         }
     } else {
-        int blockSize = 256;
-        int gridSize = (size + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
         log_forward_kernel<<<gridSize, blockSize>>>(input->data.data(), out_tensor.data(), size);
         cudaDeviceSynchronize();
     }
@@ -366,11 +367,11 @@ vector<Tensor> LogFunction::backward(const Tensor &grad_output) {
         const float *in_ptr = saved_input->data.data();
         float *grad_in_ptr = grad_input.data();
         for (size_t i = 0; i < size; i++) {
-            grad_in_ptr[i] = grad_out_ptr[i] / in_ptr[i];
+            grad_in_ptr[i] = grad_out_ptr[i] / (in_ptr[i] + 1e-8f);
         }
     } else {
-        int blockSize = 256;
-        int gridSize = (size + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
         log_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), saved_input->data.data(), grad_input.data(), size);
         cudaDeviceSynchronize();
     }
@@ -400,12 +401,11 @@ VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
 // ---------- CrossEntropyLossFunction Implementation ----------
 
 // Implementation of the cross-entropy loss function.
-VarPtr CrossEntropyLossFunction::apply(const VarPtr &prediction, const Tensor &target) {
+VarPtr CrossEntropyLossFunction::apply(const VarPtr &prediction, const Tensor &target, int num_classes) {
     // Wrap the target Tensor in a Variable (no gradient tracking).
     auto target_var = make_shared<Variable>(target, false, "target");
 
     // Compute element-wise natural logarithm of the predictions.
-    // We assume LogFunction::apply exists and works similar to TanhFunction::apply.
     auto log_pred = LogFunction::apply(prediction);
     log_pred->debug_name = "log_pred";
 
@@ -413,20 +413,33 @@ VarPtr CrossEntropyLossFunction::apply(const VarPtr &prediction, const Tensor &t
     auto prod = MultiplyFunction::apply(target_var, log_pred);
     prod->debug_name = "prod";
 
-    // Sum over all elements (this aggregates the loss across all dimensions).
+    // Sum over all elements (aggregates the loss across all dimensions)
     auto sum_loss = SumFunction::apply(prod);
     sum_loss->debug_name = "sum_loss";
 
-    // Create a scalar tensor of value -1 on the same device as sum_loss.
-    Tensor neg_tensor(1, sum_loss->data.device());
-    neg_tensor.fill(-1.0f);
-    auto neg_one = make_shared<Variable>(neg_tensor, false, "neg_one");
+    if (num_classes > 0) {
+        // Compute batch size by dividing the total number of elements in target by num_classes.
+        int batch_size = target.size() / num_classes;
 
-    // Multiply with -1 to get: loss = - Sum(target ⊙ log(prediction))
-    auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, neg_one);
-    cross_entropy_loss->debug_name = "cross_entropy_loss";
+        // Create a scaling tensor holding -1.0 / batch_size.
+        Tensor scale_tensor(1, sum_loss->data.device());
+        scale_tensor.fill(-1.0f / static_cast<float>(batch_size));
+        auto scale = make_shared<Variable>(scale_tensor, false, "scale");
 
-    return cross_entropy_loss;
+        // Multiply the summed loss by the scaling factor so that the loss is averaged per sample.
+        auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, scale);
+        cross_entropy_loss->debug_name = "cross_entropy_loss";
+        return cross_entropy_loss;
+    } else {
+        // Regular behavior: simply multiply by -1.
+        Tensor neg_tensor(1, sum_loss->data.device());
+        neg_tensor.fill(-1.0f);
+        auto neg_one = make_shared<Variable>(neg_tensor, false, "neg_one");
+
+        auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, neg_one);
+        cross_entropy_loss->debug_name = "cross_entropy_loss";
+        return cross_entropy_loss;
+    }
 }
 
 // CUDA kernel for the forward pass.
@@ -492,8 +505,8 @@ VarPtr SliceFunction::apply(const VarPtr &input, int batch_size, int start, int 
         }
     } else {
         // CUDA branch.
-        int blockSize = 256;
-        int gridSize = (total + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((total + blockSize.x - 1) / blockSize.x);
         slice_forward_kernel<<<gridSize, blockSize>>>(input->data.data(), out_tensor.data(), func->total_width, start, slice_len, batch_size);
         cudaDeviceSynchronize();
     }
@@ -528,8 +541,8 @@ vector<Tensor> SliceFunction::backward(const Tensor &grad_output) {
     } else {
         // CUDA branch.
         int total = batch_size * total_width;
-        int blockSize = 256;
-        int gridSize = (total + blockSize - 1) / blockSize;
+        dim3 blockSize(256);
+        dim3 gridSize((total + blockSize.x - 1) / blockSize.x);
         // Zero initialize grad_input on device.
         cudaMemset(grad_input.data(), 0, grad_in_size * sizeof(float));
         slice_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_input.data(), total_width, start, slice_len, batch_size);

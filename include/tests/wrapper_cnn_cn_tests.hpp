@@ -49,7 +49,7 @@ inline void runWrapperCnnCnTests() {
         // Build a Sequential container by listing the layers.
         // Note that we store the model as a Sequential pointer so that we can call
         // the convenience single-argument forward.
-        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             conv1, pool1, conv2, pool2, dense, softmax});
 
         // Create SGD optimizer using the parameters collected from the Sequential container.
@@ -58,7 +58,10 @@ inline void runWrapperCnnCnTests() {
         SGD optimizer(params, learning_rate);
 
         // Create a Trainer.
-        Trainer trainer(model, optimizer, CrossEntropyLossFunction::apply);
+        LossFunction loss_fn = [](const VarPtr &prediction, const Tensor &target) {
+            return CrossEntropyLossFunction::apply(prediction, target, 0);
+        };      
+        Trainer trainer(model, optimizer, loss_fn);
 
         // In this simple test, we train on a single sample.
         vector<VarPtr> inputs = {input_var};
@@ -72,7 +75,7 @@ inline void runWrapperCnnCnTests() {
             if (epoch % 100 == 0) {
                 VarPtr prediction = model->forward(input_var); // calls the convenience overload
                 // Calculate loss for logging.
-                VarPtr loss = MSEFunction::apply(prediction, target);
+                VarPtr loss = loss_fn(prediction, target);
                 loss->data.toCPU();
                 cout << "Epoch " << epoch << " Loss: " << loss->data.data()[0] << endl;
             }
@@ -124,7 +127,7 @@ inline void runWrapperCnnCnTests() {
         auto dense = make_shared<Dense>(4, 2, dev);
         auto softmax = make_shared<Softmax>(batch_size, num_classes);
 
-        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             conv1, pool1, conv2, pool2, dense, softmax});
 
         // Collect parameters from the model.
@@ -133,7 +136,10 @@ inline void runWrapperCnnCnTests() {
         SGD optimizer(params, learning_rate);
 
         // Create Trainer.
-        Trainer trainer(model, optimizer, CrossEntropyLossFunction::apply);
+        LossFunction loss_fn = [](const VarPtr &prediction, const Tensor &target) {
+            return CrossEntropyLossFunction::apply(prediction, target, 0);
+        };        
+        Trainer trainer(model, optimizer, loss_fn);
         vector<VarPtr> inputs = {input_var};
         vector<VarPtr> targets = {target_var};
 
@@ -143,7 +149,7 @@ inline void runWrapperCnnCnTests() {
 
             if (epoch % 100 == 0) {
                 VarPtr prediction = model->forward(input_var);
-                VarPtr loss = MSEFunction::apply(prediction, target);
+                VarPtr loss = loss_fn(prediction, target);
                 loss->data.toCPU();
                 cout << "Epoch " << epoch << " Loss: " << loss->data.data()[0] << endl;
             }

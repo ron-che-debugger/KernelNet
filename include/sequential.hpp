@@ -1,13 +1,14 @@
 #pragma once
-#include "module.hpp"
+#include "single_input_module.hpp"
 #include <cassert>
 
 using namespace std;
 
-class Sequential : public Module {
+class Sequential : public SingleInputModule {
   public:
+    using SingleInputModule::forward;
     // Container for submodules.
-    vector<shared_ptr<Module>> layers;
+    vector<shared_ptr<SingleInputModule>> layers;
 
     // Training flag (useful later for modules like dropout or batch normalization).
     bool training;
@@ -16,31 +17,23 @@ class Sequential : public Module {
     Sequential() : training(true) {}
 
     // Constructor from an initializer list.
-    Sequential(initializer_list<shared_ptr<Module>> modules)
+    Sequential(initializer_list<shared_ptr<SingleInputModule>> modules)
         : layers(modules), training(true) {}
 
-    // Unified forward method: expects a vector of inputs.
-    // For Sequential we assume that each module produces exactly one output.
-    vector<VarPtr> forward(const vector<VarPtr> &inputs) override {
-        // Begin with the given inputs.
-        vector<VarPtr> current = inputs;
+    // Override the single-argument forward from SingleInputModule.
+    // This will be used by clients that call forward() with a single VarPtr.
+    VarPtr forward(const VarPtr &input) override {
+        VarPtr current = input;
         for (auto &layer : layers) {
             // Check for non-null layers.
             assert(layer && "Encountered a null layer in Sequential.");
-            // At each stage, we expect a single output.
-            assert(current.size() == 1 && "Sequential layers require single output at each stage");
+            // Here we expect each layer to return exactly one output.
             current = layer->forward(current);
         }
         return current;
     }
 
-    // Convenience overload: allow passing a single VarPtr.
-    VarPtr forward(const VarPtr &input) {
-        vector<VarPtr> outputs = forward(vector<VarPtr>{input});
-        return outputs.front();
-    }
-
-    // Collect parameters from all layers.
+    // Collect parameters from all submodules.
     vector<VarPtr> parameters() override {
         vector<VarPtr> params;
         for (auto &layer : layers) {
@@ -51,12 +44,8 @@ class Sequential : public Module {
     }
 
     // Set the network in training mode.
-    void train() {
-        training = true;
-    }
+    void train() { training = true; }
 
     // Set the network in evaluation mode.
-    void eval() {
-        training = false;
-    }
+    void eval() { training = false; }
 };

@@ -175,7 +175,7 @@ inline void runAutogradTestsCPU() {
     auto varCePred = make_shared<Variable>(cePredTensor, true, "ce_pred");
 
     // Apply the cross-entropy loss function.
-    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor);
+    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor, 0);
 
     // Print the forward loss.
     cout << "Forward (CrossEntropy loss): "
@@ -388,7 +388,7 @@ inline void runAutogradTestsCUDA() {
     auto varCePred = make_shared<Variable>(cePredTensor, true, "ce_pred_cuda");
 
     // Apply the cross-entropy loss function.
-    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor);
+    auto ceLoss = CrossEntropyLossFunction::apply(varCePred, ceTargetTensor, 0);
 
     // Move forward loss back to CPU to print.
     ceLoss->data.toCPU();

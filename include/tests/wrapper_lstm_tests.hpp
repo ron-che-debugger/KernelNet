@@ -30,7 +30,7 @@ inline void runWrapperLSTMTests() {
         auto lstmWrapper = make_shared<LSTM>(batch_size, sequence_length, input_dim, hidden_dim, dev);
         auto dense = make_shared<Dense>(hidden_dim, output_dim, dev);
         // Build a Sequential container.
-        auto model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             lstmWrapper, dense});
 
         vector<VarPtr> params = model->parameters();
@@ -82,7 +82,7 @@ inline void runWrapperLSTMTests() {
 
         auto lstmWrapper = make_shared<LSTM>(batch_size, sequence_length, input_dim, hidden_dim, dev);
         auto dense = make_shared<Dense>(hidden_dim, output_dim, dev);
-        auto model = make_shared<Sequential>(initializer_list<shared_ptr<Module>>{
+        auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             lstmWrapper, dense});
 
         vector<VarPtr> params = model->parameters();

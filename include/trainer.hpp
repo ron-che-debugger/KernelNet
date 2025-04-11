@@ -18,7 +18,7 @@ using LossFunction = std::function<VarPtr(const VarPtr &, const Tensor &)>;
 class Trainer {
   public:
     // The model (e.g., Sequential) must follow the unified Module interface.
-    shared_ptr<Module> model;
+    shared_ptr<Sequential> model;
     // Optimizer, e.g. SGD.
     SGD optimizer;
     // Loss function to compute the loss during training.
@@ -26,7 +26,7 @@ class Trainer {
 
     // Constructor: takes a model, an optimizer, and optionally a loss function.
     // Default loss function is MSEFunction::apply.
-    Trainer(const shared_ptr<Module> &model, const SGD &optimizer,
+    Trainer(const shared_ptr<Sequential> &model, const SGD &optimizer,
             LossFunction loss_fn = MSEFunction::apply)
         : model(model), optimizer(optimizer), loss_fn(loss_fn) {}
 
@@ -38,10 +38,7 @@ class Trainer {
         assert(inputs.size() == targets.size() && "Mismatched number of inputs and targets");
         for (size_t i = 0; i < inputs.size(); ++i) {
             // Forward pass:
-            // Since the base Module::forward expects a vector, wrap the single input in braces.
-            vector<VarPtr> prediction_vec = model->forward({inputs[i]});
-            VarPtr prediction = prediction_vec.front();
-
+            VarPtr prediction = model->forward(inputs[i]);
             // Compute the loss using the configured loss function.
             // We assume that the target variable stores a tensor in its 'data' member.
             VarPtr loss = loss_fn(prediction, targets[i]->data);

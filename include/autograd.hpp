@@ -118,7 +118,7 @@ class MSEFunction : public Function {
 
 class CrossEntropyLossFunction : public Function {
   public:
-    static VarPtr apply(const VarPtr &prediction, const Tensor &target);
+    static VarPtr apply(const VarPtr &prediction, const Tensor &target, int num_classes);
 };
 
 class SliceFunction : public Function {
