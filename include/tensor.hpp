@@ -49,6 +49,7 @@ class Tensor {
     static Tensor scalar_multiply(const Tensor &a, float scalar);
     static Tensor broadcast_add(const Tensor &a, const Tensor &b);
 
+    int argmax() const;
     float sum() const;
     void relu();
     static Tensor matmul(const Tensor &a, const Tensor &b, int M, int K, int N);

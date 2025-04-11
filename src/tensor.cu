@@ -208,6 +208,37 @@ Tensor Tensor::broadcast_add(const Tensor &a, const Tensor &b) {
     return Tensor();
 }
 
+int Tensor::argmax() const {
+    if (_size == 0)
+        return -1; // Return -1 if the tensor is empty.
+
+    if (_device == CPU) {
+        int max_index = 0;
+        float max_val = _data_host[0];
+        for (size_t i = 1; i < _size; i++) {
+            if (_data_host[i] > max_val) {
+                max_val = _data_host[i];
+                max_index = i;
+            }
+        }
+        return max_index;
+    } else {
+        // If the tensor is on the GPU, first copy its data to host.
+        float *temp = new float[_size];
+        cudaMemcpy(temp, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
+        int max_index = 0;
+        float max_val = temp[0];
+        for (size_t i = 1; i < _size; i++) {
+            if (temp[i] > max_val) {
+                max_val = temp[i];
+                max_index = i;
+            }
+        }
+        delete[] temp;
+        return max_index;
+    }
+}
+
 float Tensor::sum() const {
     float total = 0.0f;
 
