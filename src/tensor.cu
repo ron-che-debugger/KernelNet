@@ -239,6 +239,41 @@ int Tensor::argmax() const {
     }
 }
 
+// New axis-aware argmax. For now we assume axis is 1 and dim_size is provided.
+// This method treats the tensor as a 2D array with shape (batch_size, dim_size),
+// where batch_size = _size / dim_size.
+vector<int> Tensor::argmax(int axis, int dim_size) const {
+    // Only supporting axis==1 in this implementation.
+    assert(axis == 1 && "Currently only axis==1 is supported in argmax");
+    int batch_size = _size / dim_size;
+    vector<int> result(batch_size, 0);
+
+    // Allocate temporary buffer and copy data from device if necessary.
+    float *data_ptr = new float[_size];
+    if (_device == CPU) {
+        memcpy(data_ptr, _data_host, _size * sizeof(float));
+    } else {
+        cudaMemcpy(data_ptr, _data_device, _size * sizeof(float), cudaMemcpyDeviceToHost);
+    }
+
+    // Process each row (sample) separately.
+    for (int i = 0; i < batch_size; i++) {
+        int start = i * dim_size;
+        int best_index = 0;
+        float best_value = data_ptr[start];
+        for (int j = 1; j < dim_size; j++) {
+            float cur_val = data_ptr[start + j];
+            if (cur_val > best_value) {
+                best_value = cur_val;
+                best_index = j;
+            }
+        }
+        result[i] = best_index;
+    }
+    delete[] data_ptr;
+    return result;
+}
+
 float Tensor::sum() const {
     float total = 0.0f;
 

@@ -22,8 +22,8 @@ using namespace std::chrono;
 void runCIFAR10Tests() {
     // Set device (for this example, we run on CPU; later you can set dev = CUDA)
     Device dev = CPU;
-    int batch_size = 32;
-    int num_epochs = 10;  // For demonstration purposes.
+    int batch_size = 64;
+    int num_epochs = 50;  // For demonstration purposes.
     int num_classes = 10; // CIFAR-10 has 10 classes.
     int image_height = 32, image_width = 32, in_channels = 3;
 
@@ -56,7 +56,7 @@ void runCIFAR10Tests() {
 
     // --- Set Optimizer ---
     vector<VarPtr> params = model->parameters();
-    float learning_rate = 0.0001f;
+    float learning_rate = 0.01f;
     SGD optimizer(params, learning_rate);
 
     // --- Create Trainer ---
@@ -64,7 +64,7 @@ void runCIFAR10Tests() {
         // 10 is the number of classes we want to use for averaging.
         return CrossEntropyLossFunction::apply(prediction, target, num_classes);
     };
-    
+
     Trainer trainer(model, optimizer, loss_fn);
 
     // --- Training Loop ---
@@ -75,6 +75,10 @@ void runCIFAR10Tests() {
         while (trainLoader.hasNext()) {
             // Each batch returns a pair: {input_batch, target_batch}
             auto batch = trainLoader.nextBatch();
+            if (dev == CUDA) {
+                batch.first.toCUDA();
+                batch.second.toCUDA();
+            }
             // batch.first: Tensor input, shape: [batch_size, channels, height, width]
             // batch.second: Tensor target, format as required (e.g., class indices or one-hot)
             VarPtr input_var = make_shared<Variable>(batch.first, false, "input_batch");
@@ -91,35 +95,28 @@ void runCIFAR10Tests() {
         }
         trainLoader.reset(); // Reset loader for next epoch.
         cout << "Epoch " << epoch << " Average Loss: " << epoch_loss / batches << endl;
-
-        if (epoch == 0 || epoch % 5 == 0) { // Adjust frequency as needed.
-            // Get one batch without training.
-            auto sample_batch = trainLoader.nextBatch();
-            VarPtr sample_input = make_shared<Variable>(sample_batch.first, false, "sample_input");
-            VarPtr sample_pred = model->forward(sample_input);
-            cout << "Prediction tensor at epoch " << epoch << ":" << endl;
-            sample_pred->data.toCPU();
-            sample_pred->data.print();
-            // Optionally, reset the loader so that training continues correctly.
-            trainLoader.reset();
-        }
     }
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count();
-    cout << "Custom architecture training completed in " << duration << " ms" << endl;
+    cout << "Custom architecture training completed in " << (duration / 1000.0) << " seconds" << endl;
 
     // --- Evaluate on Test Set (Accuracy) ---
     int correct = 0, total = 0;
     while (testLoader.hasNext()) {
         auto batch = testLoader.nextBatch();
+
+        if (dev == CUDA) {
+            batch.first.toCUDA();
+            batch.second.toCUDA();
+        }
+
         VarPtr input_var = make_shared<Variable>(batch.first, false, "test_input");
         VarPtr prediction = model->forward(input_var);
 
-        int pred_label = prediction->data.argmax();
-        int true_label = batch.second.argmax();
-        if (pred_label == true_label)
-            correct++;
-        total++;
+        // Use the new axis-aware argmax for both prediction and ground truth.
+        // The argmax function internally copies data to CPU if needed.
+        vector<int> pred_labels = prediction->data.argmax(1, num_classes);
+        vector<int> true_labels = batch.second.argmax(1, num_classes);
     }
-    cout << "Custom architecture Test Accuracy: " << (100.0 * correct / total) << "%" << endl;
+    cout << "KenelNet Test Accuracy: " << (100.0 * correct / total) << "%" << endl;
 }

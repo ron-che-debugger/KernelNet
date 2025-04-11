@@ -1,5 +1,4 @@
-#ifndef TENSOR_TESTS_HPP
-#define TENSOR_TESTS_HPP
+#pragma once
 
 #include "tensor.hpp"
 #include <cassert>
@@ -104,6 +103,33 @@ inline void runTensorTests() {
     int index_cpu = argmax_cpu.argmax();
     cout << "Argmax index (CPU): " << index_cpu << " (expected: 1)" << endl;
 
+    // ----- Test axis-aware argmax -----
+    cout << "\nTesting axis-aware argmax on CPU:" << endl;
+    int batch_size = 3, num_classes = 4;
+    Tensor tensor_cpu(batch_size * num_classes, CPU);
+    float *data_cpu = tensor_cpu.data();
+    // Row 0: [0.1, 0.5, 0.3, 0.2] -> Expected argmax index 1.
+    data_cpu[0] = 0.1f;
+    data_cpu[1] = 0.5f;
+    data_cpu[2] = 0.3f;
+    data_cpu[3] = 0.2f;
+    // Row 1: [0.9, 0.2, 0.8, 0.4] -> Expected argmax index 0.
+    data_cpu[4] = 0.9f;
+    data_cpu[5] = 0.2f;
+    data_cpu[6] = 0.8f;
+    data_cpu[7] = 0.4f;
+    // Row 2: [0.3, 0.7, 0.7, 0.6] -> Expected argmax index 1 (first occurrence).
+    data_cpu[8] = 0.3f;
+    data_cpu[9] = 0.7f;
+    data_cpu[10] = 0.7f;
+    data_cpu[11] = 0.6f;
+
+    vector<int> cpu_indices = tensor_cpu.argmax(1, num_classes);
+    cout << "Axis-aware argmax indices (CPU): ";
+    for (size_t i = 0; i < cpu_indices.size(); ++i) {
+        cout << cpu_indices[i] << " ";
+    }
+    cout << " (expected: 1 0 1)" << endl;
     // ========= CUDA Tests =========
     cout << "\n===== Testing on CUDA =====" << endl;
 
@@ -198,6 +224,30 @@ inline void runTensorTests() {
     argmax_cuda.toCUDA();
     int index_cuda = argmax_cuda.argmax();
     cout << "Argmax index (CUDA): " << index_cuda << " (expected: 1)" << endl;
-}
 
-#endif // TENSOR_TESTS_HPP
+    cout << "\nTesting axis-aware argmax on CUDA:" << endl;
+    Tensor tensor_cuda(batch_size * num_classes, CPU);
+    float *data_cuda = tensor_cuda.data();
+    // Set the same values as before.
+    data_cuda[0] = 0.1f;
+    data_cuda[1] = 0.5f;
+    data_cuda[2] = 0.3f;
+    data_cuda[3] = 0.2f;
+    data_cuda[4] = 0.9f;
+    data_cuda[5] = 0.2f;
+    data_cuda[6] = 0.8f;
+    data_cuda[7] = 0.4f;
+    data_cuda[8] = 0.3f;
+    data_cuda[9] = 0.7f;
+    data_cuda[10] = 0.7f;
+    data_cuda[11] = 0.6f;
+    // Transfer the tensor to CUDA.
+    tensor_cuda.toCUDA();
+
+    vector<int> cuda_indices = tensor_cuda.argmax(1, num_classes);
+    cout << "Axis-aware argmax indices (CUDA): ";
+    for (size_t i = 0; i < cuda_indices.size(); ++i) {
+        cout << cuda_indices[i] << " ";
+    }
+    cout << " (expected: 1 0 1)" << endl;
+}

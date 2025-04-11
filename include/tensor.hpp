@@ -3,7 +3,9 @@
 #include <cstring>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <vector>
 
+using namespace std;
 enum Device { CPU,
               CUDA };
 
@@ -50,6 +52,7 @@ class Tensor {
     static Tensor broadcast_add(const Tensor &a, const Tensor &b);
 
     int argmax() const;
+    vector<int> argmax(int axis, int dim_size) const;
     float sum() const;
     void relu();
     static Tensor matmul(const Tensor &a, const Tensor &b, int M, int K, int N);

@@ -29,7 +29,7 @@ class CIFAR10Dataset {
     //          if false, load test_batch.bin.
     CIFAR10Dataset(const string &data_dir, bool train) {
         if (train) {
-            for (int i = 1; i <= 1; i++) {
+            for (int i = 1; i <= 5; i++) {
                 stringstream ss;
                 ss << data_dir << "/data_batch_" << i << ".bin";
                 loadFile(ss.str());

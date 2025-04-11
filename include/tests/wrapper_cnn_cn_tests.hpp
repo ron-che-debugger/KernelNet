@@ -60,7 +60,7 @@ inline void runWrapperCnnCnTests() {
         // Create a Trainer.
         LossFunction loss_fn = [](const VarPtr &prediction, const Tensor &target) {
             return CrossEntropyLossFunction::apply(prediction, target, 0);
-        };      
+        };
         Trainer trainer(model, optimizer, loss_fn);
 
         // In this simple test, we train on a single sample.
@@ -138,7 +138,7 @@ inline void runWrapperCnnCnTests() {
         // Create Trainer.
         LossFunction loss_fn = [](const VarPtr &prediction, const Tensor &target) {
             return CrossEntropyLossFunction::apply(prediction, target, 0);
-        };        
+        };
         Trainer trainer(model, optimizer, loss_fn);
         vector<VarPtr> inputs = {input_var};
         vector<VarPtr> targets = {target_var};
