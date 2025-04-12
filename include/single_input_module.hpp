@@ -9,7 +9,13 @@
 #pragma once
 
 #include "module.hpp"
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Base class for modules that operate on a single input and produce a single output.
  *
@@ -35,3 +41,5 @@ class SingleInputModule : public Module {
         return {forward(inputs[0])};
     }
 };
+} // namespace nn
+} // namespace kernelnet

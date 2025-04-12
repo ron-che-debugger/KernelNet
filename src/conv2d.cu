@@ -1,7 +1,7 @@
 #include "conv2d.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Conv2D constructor.
  *
@@ -591,3 +591,5 @@ vector<Tensor> Conv2DFunction::backward(const Tensor &grad_output) {
                                             out_channels, out_height, out_width);
     return {grad_input, grad_weight, grad_bias};
 }
+} // namespace nn
+} // namespace kernelnet

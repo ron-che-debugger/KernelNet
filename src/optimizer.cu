@@ -1,7 +1,7 @@
 #include "optimizer.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace optim {
 /**
  * @brief CUDA kernel to fill an array with a constant value.
  *
@@ -194,3 +194,5 @@ void SGD::zero_grad() {
         param->pending_count = 0;
     }
 }
+} // namespace optim
+} // namespace kernelnet

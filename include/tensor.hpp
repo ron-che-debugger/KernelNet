@@ -15,7 +15,8 @@
 #include <vector>
 
 using namespace std;
-
+namespace kernelnet {
+namespace tensor {
 /**
  * @brief Enum representing the target device.
  */
@@ -305,3 +306,5 @@ class Tensor {
         }
     }
 };
+} // namespace tensor
+} // namespace kernelnet

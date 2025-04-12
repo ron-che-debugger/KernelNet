@@ -23,7 +23,8 @@
 #include <vector>
 
 using namespace std;
-
+namespace kernelnet {
+namespace data {
 /**
  * @brief Structure to hold a single CIFAR-10 sample.
  *
@@ -137,3 +138,5 @@ class CIFAR10Dataset {
         cout << "Loaded " << samples.size() << " samples from " << filename << endl;
     }
 };
+} // namespace data
+} // namespace kernelnet

@@ -1,9 +1,6 @@
 #pragma once
 
-#include "autograd.hpp"
-#include "conv2d.hpp"
-#include "optimizer.hpp"
-#include "tensor.hpp"
+#include "kernelnet.hpp"
 
 using namespace std;
 

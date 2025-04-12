@@ -1,11 +1,5 @@
 #pragma once
-#include "autograd.hpp"
-#include "conv2d.hpp"
-#include "dense.hpp"
-#include "maxpool.hpp"
-#include "optimizer.hpp"
-#include "softmax.hpp"
-#include "tensor.hpp"
+#include "kernelnet.hpp"
 
 using namespace std;
 

@@ -1,7 +1,7 @@
 #include "dense.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief CUDA kernel to replicate bias for each sample in the batch.
  *
@@ -85,3 +85,5 @@ VarPtr Dense::forward(const VarPtr &input) {
 vector<VarPtr> Dense::parameters() {
     return {weight, bias};
 }
+} // namespace nn
+} // namespace kernelnet

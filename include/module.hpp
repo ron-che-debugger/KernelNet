@@ -15,7 +15,12 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Abstract base class for all neural network modules.
  *
@@ -51,3 +56,5 @@ class Module {
         }
     }
 };
+} // namespace nn
+} // namespace kernelnet

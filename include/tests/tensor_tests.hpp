@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tensor.hpp"
+#include "kernelnet.hpp"
 #include <cassert>
 #include <cuda_runtime.h>
 #include <iostream>

@@ -1,8 +1,5 @@
 #pragma once
-#include "autograd.hpp"
-#include "dense.hpp"
-#include "lstm.hpp"
-#include "optimizer.hpp"
+#include "kernelnet.hpp"
 
 using namespace std;
 

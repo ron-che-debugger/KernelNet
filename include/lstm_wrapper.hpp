@@ -23,7 +23,13 @@
 #include <cassert>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Multi-step LSTM module that unrolls a single LSTMCell across time steps.
  */
@@ -87,3 +93,5 @@ class LSTM : public SingleInputModule {
         return current_hidden;
     }
 };
+} // namespace nn
+} // namespace kernelnet

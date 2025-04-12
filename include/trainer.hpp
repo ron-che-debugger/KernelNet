@@ -20,7 +20,14 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
+using namespace optim;
 
+namespace kernelnet {
+namespace trainer {
 /**
  * @brief Alias for a loss function.
  *
@@ -86,3 +93,5 @@ class Trainer {
         }
     }
 };
+} // namespace trainer
+} // namespace kernelnet

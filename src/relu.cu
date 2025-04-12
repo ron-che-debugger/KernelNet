@@ -1,5 +1,6 @@
 #include "relu.hpp"
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief CUDA kernel for the forward pass of ReLU.
  *
@@ -125,3 +126,5 @@ vector<Tensor> ReLUFunction::backward(const Tensor &grad_output) {
     }
     return {grad_input};
 }
+} // namespace nn
+} // namespace kernelnet

@@ -1,11 +1,6 @@
 #pragma once
 
-#include "autograd.hpp"
-#include "dense.hpp"
-#include "lstm_wrapper.hpp"
-#include "optimizer.hpp"
-#include "sequential.hpp"
-#include "trainer.hpp"
+#include "kernelnet.hpp"
 
 using namespace std;
 

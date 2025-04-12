@@ -21,7 +21,8 @@
 #include <vector>
 
 using namespace std;
-
+namespace kernelnet {
+namespace data {
 /**
  * @brief Batches samples from a CIFAR-10 dataset with optional shuffling.
  *
@@ -118,3 +119,5 @@ class CIFAR10DataLoader {
         return {batch_images, batch_labels};
     }
 };
+} // namespace data
+} // namespace kernelnet

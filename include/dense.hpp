@@ -19,7 +19,13 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Fully connected linear layer (also known as Dense or Linear layer).
  *
@@ -63,3 +69,5 @@ class Dense : public SingleInputModule {
      */
     vector<VarPtr> parameters() override;
 };
+} // namespace nn
+} // namespace kernelnet

@@ -1,7 +1,7 @@
 #include "tanh.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Default constructor for the Tanh module.
  *
@@ -131,3 +131,5 @@ vector<Tensor> TanhFunction::backward(const Tensor &grad_output) {
     }
     return {grad_input};
 }
+} // namespace nn
+} // namespace kernelnet

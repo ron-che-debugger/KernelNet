@@ -13,17 +13,8 @@
 
 #pragma once
 
-#include "./benchmark/cifar10_data_loader.hpp"
-#include "./benchmark/cifar10_dataset.hpp"
-#include "autograd.hpp"
-#include "conv2d.hpp"
-#include "dense.hpp"
-#include "maxpool.hpp"
-#include "optimizer.hpp"
-#include "sequential.hpp"
-#include "softmax.hpp"
-#include "tensor.hpp"
-#include "trainer.hpp"
+#include "kernelnet.hpp"
+
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -41,7 +32,7 @@ using namespace std::chrono;
 void runCIFAR10Tests() {
     Device dev = CUDA;
 
-    int batch_size = 64;
+    int batch_size = 256;
     int num_epochs = 100;
     int num_classes = 10;
     int image_height = 32, image_width = 32, in_channels = 3;
@@ -102,9 +93,9 @@ void runCIFAR10Tests() {
 
             VarPtr prediction = model->forward(input_var);
             VarPtr loss = loss_fn(prediction, batch.second);
-            float batch_avg_loss = loss->data.sum() / batch_size;
+            float batch_loss = loss->data.sum();
 
-            epoch_loss += batch_avg_loss;
+            epoch_loss += batch_loss;
             batches++;
         }
 

@@ -1,14 +1,7 @@
 #pragma once
 
-#include "autograd.hpp"
-#include "conv2d.hpp"
-#include "dense.hpp"
-#include "maxpool.hpp"
-#include "optimizer.hpp"
-#include "sequential.hpp"
-#include "softmax.hpp"
-#include "tensor.hpp"
-#include "trainer.hpp"
+#include "kernelnet.hpp"
+
 #include <iostream>
 #include <memory>
 #include <vector>

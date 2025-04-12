@@ -1,7 +1,7 @@
 #include "sigmoid.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Default constructor for the Sigmoid module.
  *
@@ -128,3 +128,5 @@ vector<Tensor> SigmoidFunction::backward(const Tensor &grad_output) {
     }
     return {grad_input};
 }
+} // namespace nn
+} // namespace kernelnet

@@ -17,7 +17,12 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
 
+namespace kernelnet {
+namespace optim {
 /**
  * @brief Stochastic Gradient Descent (SGD) optimizer.
  *
@@ -51,3 +56,5 @@ class SGD {
      */
     void zero_grad();
 };
+} // namespace optim
+} // namespace kernelnet

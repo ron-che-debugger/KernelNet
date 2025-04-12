@@ -9,7 +9,13 @@
 #include <cassert>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Container for stacking layers in a forward sequence.
  *
@@ -71,3 +77,5 @@ class Sequential : public SingleInputModule {
      */
     void eval() { training = false; }
 };
+} // namespace nn
+} // namespace kernelnet

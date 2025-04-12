@@ -1,7 +1,7 @@
 #include "autograd.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace autograd {
 /**
  * @brief CUDA kernel to fill an array with a constant value.
  *
@@ -688,3 +688,5 @@ vector<Tensor> SliceFunction::backward(const Tensor &grad_output) {
     }
     return {grad_input};
 }
+} // namespace autograd
+} // namespace kernelnet

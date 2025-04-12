@@ -15,7 +15,13 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Autograd-compatible implementation of the Sigmoid activation.
  *
@@ -66,3 +72,5 @@ class Sigmoid : public SingleInputModule {
      */
     VarPtr forward(const VarPtr &input) override;
 };
+} // namespace nn
+} // namespace kernelnet

@@ -20,7 +20,13 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Structure to hold the output states of an LSTM cell.
  */
@@ -160,3 +166,5 @@ inline void generateSequenceData(int batch_size, int sequence_length, int input_
         tgt_data[b] = sum;
     }
 }
+} // namespace nn
+} // namespace kernelnet

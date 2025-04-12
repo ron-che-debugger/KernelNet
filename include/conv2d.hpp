@@ -17,7 +17,13 @@
 #include <iostream>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
+using namespace kernelnet::autograd;
+using namespace kernelnet::nn;
 
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Learnable 2D convolution layer with autograd support.
  */
@@ -184,3 +190,5 @@ class Conv2DFunction : public Function {
      */
     vector<Tensor> backward(const Tensor &grad_output) override;
 };
+} // namespace nn
+} // namespace kernelnet

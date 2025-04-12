@@ -1,6 +1,5 @@
 #pragma once
-
-#include "autograd.hpp"
+#include "kernelnet.hpp"
 #include <iostream>
 #include <memory>
 #include <vector>

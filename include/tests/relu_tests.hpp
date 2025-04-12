@@ -1,6 +1,5 @@
 #pragma once
-#include "relu.hpp"
-#include "tensor.hpp"
+#include "kernelnet.hpp"
 
 using namespace std;
 

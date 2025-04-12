@@ -1,5 +1,6 @@
 #include "softmax.hpp"
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Constructs a Softmax module.
  *
@@ -264,3 +265,5 @@ vector<Tensor> SoftmaxFunction::backward(const Tensor &grad_output) {
     }
     return {grad_in};
 }
+} // namespace nn
+} // namespace kernelnet

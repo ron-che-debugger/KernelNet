@@ -1,7 +1,6 @@
 #pragma once
 
-#include "autograd.hpp"
-#include "tensor.hpp"
+#include "kernelnet.hpp"
 #include <iostream>
 #include <string>
 using namespace std;

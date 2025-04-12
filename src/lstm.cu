@@ -1,7 +1,7 @@
 #include "lstm.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Performs the forward pass of the LSTM cell.
  *
@@ -548,3 +548,5 @@ vector<VarPtr> LSTMCell::forward(const vector<VarPtr> &inputs) {
 vector<VarPtr> LSTMCell::parameters() {
     return {weight_ih, weight_hh, bias_ih, bias_hh};
 }
+} // namespace nn
+} // namespace kernelnet

@@ -20,7 +20,11 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet;
+using namespace kernelnet::tensor;
 
+namespace kernelnet {
+namespace autograd {
 // Forward declarations
 class Variable;
 class Function;
@@ -221,3 +225,5 @@ class SliceFunction : public Function {
      */
     vector<Tensor> backward(const Tensor &grad_output) override;
 };
+} // namespace autograd
+} // namespace kernelnet

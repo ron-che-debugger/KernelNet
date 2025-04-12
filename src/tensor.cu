@@ -1,7 +1,7 @@
 #include "tensor.hpp"
 
-using namespace std;
-
+namespace kernelnet {
+namespace tensor {
 /**
  * @brief Default constructor for Tensor.
  *
@@ -651,3 +651,5 @@ Tensor Tensor::scalar_multiply(const Tensor &a, float scalar) {
     }
     return out;
 }
+} // namespace tensor
+} // namespace kernelnet

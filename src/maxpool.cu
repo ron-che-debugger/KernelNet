@@ -1,7 +1,6 @@
 #include "maxpool.hpp"
-
-using namespace std;
-
+namespace kernelnet {
+namespace nn {
 /**
  * @brief Constructor for the MaxPool2D module.
  *
@@ -288,3 +287,5 @@ vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
         return {grad_input};
     }
 }
+} // namespace nn
+} // namespace kernelnet

@@ -1,6 +1,6 @@
 #pragma once
-#include "lstm.hpp"
-#include "tensor.hpp"
+#include "kernelnet.hpp"
+
 #include <iostream>
 #include <memory>
 #include <vector>
