@@ -39,10 +39,10 @@ using namespace std::chrono;
  * After training, accuracy is evaluated on the held-out test set.
  */
 void runCIFAR10Tests() {
-    Device dev = CPU;
+    Device dev = CUDA;
 
     int batch_size = 64;
-    int num_epochs = 2;
+    int num_epochs = 100;
     int num_classes = 10;
     int image_height = 32, image_width = 32, in_channels = 3;
 
