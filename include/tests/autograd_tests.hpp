@@ -1,5 +1,4 @@
-#ifndef AUTOGRAD_TESTS_HPP
-#define AUTOGRAD_TESTS_HPP
+#pragma once
 
 #include "autograd.hpp"
 #include "tensor.hpp"
@@ -415,5 +414,3 @@ inline void runAutogradTests() {
     runAutogradTestsCUDA();
 #endif
 }
-
-#endif // AUTOGRAD_TESTS_HPP

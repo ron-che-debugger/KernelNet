@@ -1,39 +1,57 @@
+/**
+ * @file sequential.hpp
+ * @brief Defines the `Sequential` container module for stacking layers linearly.
+ */
+
 #pragma once
+
 #include "single_input_module.hpp"
 #include <cassert>
 
 using namespace std;
 
+/**
+ * @brief Container for stacking layers in a forward sequence.
+ *
+ * Each submodule must be a `SingleInputModule`, accepting and returning a single `VarPtr`.
+ */
 class Sequential : public SingleInputModule {
   public:
     using SingleInputModule::forward;
-    // Container for submodules.
-    vector<shared_ptr<SingleInputModule>> layers;
 
-    // Training flag (useful later for modules like dropout or batch normalization).
-    bool training;
+    vector<shared_ptr<SingleInputModule>> layers; ///< Ordered list of layers to apply
+    bool training;                                ///< Mode flag (used by some layers like dropout/batch norm)
 
-    // Default constructor.
+    /**
+     * @brief Constructs an empty Sequential container.
+     */
     Sequential() : training(true) {}
 
-    // Constructor from an initializer list.
+    /**
+     * @brief Constructs a Sequential container from a list of modules.
+     * @param modules An initializer list of shared pointers to modules.
+     */
     Sequential(initializer_list<shared_ptr<SingleInputModule>> modules)
         : layers(modules), training(true) {}
 
-    // Override the single-argument forward from SingleInputModule.
-    // This will be used by clients that call forward() with a single VarPtr.
+    /**
+     * @brief Forward pass through all layers.
+     * @param input Input variable.
+     * @return Output variable after applying all layers sequentially.
+     */
     VarPtr forward(const VarPtr &input) override {
         VarPtr current = input;
         for (auto &layer : layers) {
-            // Check for non-null layers.
             assert(layer && "Encountered a null layer in Sequential.");
-            // Here we expect each layer to return exactly one output.
             current = layer->forward(current);
         }
         return current;
     }
 
-    // Collect parameters from all submodules.
+    /**
+     * @brief Gathers all parameters from each submodule.
+     * @return Flattened list of learnable parameters.
+     */
     vector<VarPtr> parameters() override {
         vector<VarPtr> params;
         for (auto &layer : layers) {
@@ -43,9 +61,13 @@ class Sequential : public SingleInputModule {
         return params;
     }
 
-    // Set the network in training mode.
+    /**
+     * @brief Sets all layers to training mode.
+     */
     void train() { training = true; }
 
-    // Set the network in evaluation mode.
+    /**
+     * @brief Sets all layers to evaluation mode.
+     */
     void eval() { training = false; }
 };

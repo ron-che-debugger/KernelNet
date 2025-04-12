@@ -2,6 +2,24 @@
 
 using namespace std;
 
+/**
+ * @brief Performs the forward pass of the LSTM cell.
+ *
+ * Calculates the new hidden and cell states given the current input, previous hidden state,
+ * previous cell state, and the corresponding weights and biases. The operation includes a linear
+ * transformation followed by slicing into four gates and applying nonlinearities.
+ *
+ * @param input Input variable at the current time step (shape: [batch_size, input_dim]).
+ * @param h_prev Previous hidden state (shape: [batch_size, hidden_dim]).
+ * @param c_prev Previous cell state (shape: [batch_size, hidden_dim]).
+ * @param weight_ih Input-to-hidden weight variable (shape: [input_dim, 4 * hidden_dim]).
+ * @param weight_hh Hidden-to-hidden weight variable (shape: [hidden_dim, 4 * hidden_dim]).
+ * @param bias_ih Input-to-hidden bias variable (shape: [4 * hidden_dim]).
+ * @param bias_hh Hidden-to-hidden bias variable (shape: [4 * hidden_dim]).
+ * @param input_dim Dimensionality of the input.
+ * @param hidden_dim Dimensionality of the hidden state.
+ * @return A pair {h_new, c_new} containing the new hidden and cell states.
+ */
 pair<VarPtr, VarPtr> LSTMCellFunction::apply(const VarPtr &input,
                                              const VarPtr &h_prev,
                                              const VarPtr &c_prev,
@@ -32,7 +50,7 @@ pair<VarPtr, VarPtr> LSTMCellFunction::apply(const VarPtr &input,
     func->inputs.push_back(bias_ih);
     func->inputs.push_back(bias_hh);
 
-    // Determine batch size (assuming input shape: [batch_size, input_dim]).
+    // Determine batch size (assumes input shape: [batch_size, input_dim]).
     int batch_size = input->data.size() / input_dim;
     func->batch_size = batch_size;
 
@@ -85,18 +103,25 @@ pair<VarPtr, VarPtr> LSTMCellFunction::apply(const VarPtr &input,
 
     // Set autograd creator for outputs.
     h_new->set_creator(func);
-    // c_new->set_creator(func);
-    func->output = h_new; // Primary output is h_new.
+    // c_new->set_creator(func);  // Only h_new is used as primary output.
+    func->output = h_new;
 
     return {h_new, c_new};
 }
 
-// Order of gradients dependency:
-// delta_c(Cell State Gradient) -> <di, df, dg, do>(Gate Gradients) -> dG(Pre-activation[raw] Gradients)
-// -> grad_bias<grad_bias_ih, grad_bias_hh>(Bias Gradients) -> <grad_c_prev(Previous Cell Gradient), grad_input(Input Gradient),
-// grad_h_prev(Previous Hidden Gradient), grad_weights<grad_weight_ih, grad_weight_hh>(Weight Gradients)>
+/* Order of gradients dependency:
+   delta_c(Cell State Gradient) -> <di, df, dg, do>(Gate Gradients) -> dG (Pre-activation Gradients)
+   -> grad_bias <grad_bias_ih, grad_bias_hh>(Bias Gradients) ->
+      <grad_c_prev, grad_input, grad_h_prev, grad_weights <grad_weight_ih, grad_weight_hh>>
+*/
 
-// Kernel to compute T = tanh(c_new).
+/**
+ * @brief CUDA kernel to compute T = tanh(c_new) element-wise.
+ *
+ * @param c_new Pointer to the new cell state array.
+ * @param T Pointer to the output array for tanh(c_new).
+ * @param size Number of elements (B * H).
+ */
 __global__ void compute_T_kernel(const float *c_new, float *T, int size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
@@ -104,7 +129,18 @@ __global__ void compute_T_kernel(const float *c_new, float *T, int size) {
     }
 }
 
-// Kernel to compute delta_c = grad_c + grad_h ⊙ o_act ⊙ (1 - T^2).
+/**
+ * @brief CUDA kernel to compute the effective cell gradient: delta_c.
+ *
+ * Calculates delta_c = grad_c + grad_h ⊙ o_gate_act ⊙ (1 - T^2).
+ *
+ * @param grad_h Pointer to the gradient from h_new.
+ * @param grad_c Pointer to the gradient from c_new.
+ * @param o_act Pointer to the activated output gate.
+ * @param T Pointer to tanh(c_new).
+ * @param delta_c Pointer to the output delta_c array.
+ * @param size Number of elements (B * H).
+ */
 __global__ void compute_delta_c_kernel(const float *grad_h, const float *grad_c,
                                        const float *o_act, const float *T,
                                        float *delta_c, int size) {
@@ -115,13 +151,28 @@ __global__ void compute_delta_c_kernel(const float *grad_h, const float *grad_c,
     }
 }
 
-// Kernel to compute dG (raw gate gradients) for each sample element.
-// For each sample b and index j in [0, H):
-//   di_raw = (delta_c ⊙ g_act)[b,j] * (i_act[b,j]*(1-i_act[b,j]))
-//   df_raw = (delta_c ⊙ c_prev)[b,j] * (f_act[b,j]*(1-f_act[b,j]))
-//   dg_raw = (delta_c ⊙ i_act)[b,j] * (1 - g_act[b,j]^2)
-//   do_raw = (grad_h ⊙ T)[b,j] * (o_act[b,j]*(1-o_act[b,j]))
-// and concatenated into dG at offsets.
+/**
+ * @brief CUDA kernel to compute raw gate gradients (dG) for LSTM cell.
+ *
+ * For each sample and each hidden state index j:
+ *   - di_raw = (delta_c ⊙ g_gate_act)[b,j] * (i_gate_act[b,j]*(1-i_gate_act[b,j]))
+ *   - df_raw = (delta_c ⊙ c_prev)[b,j] * (f_gate_act[b,j]*(1-f_gate_act[b,j])
+ *   - dg_raw = (delta_c ⊙ i_gate_act)[b,j] * (1 - g_gate_act[b,j]^2)
+ *   - do_raw = (grad_h ⊙ tanh(c_new))[b,j] * (o_gate_act[b,j]*(1-o_gate_act[b,j])
+ * The gradients are concatenated into dG.
+ *
+ * @param delta_c Pointer to the effective cell gradients.
+ * @param g_act Pointer to activated candidate gate (g_gate_act).
+ * @param i_act Pointer to activated input gate (i_gate_act).
+ * @param f_act Pointer to activated forget gate (f_gate_act).
+ * @param grad_h Pointer to the gradient from h_new.
+ * @param T Pointer to tanh(c_new).
+ * @param o_act Pointer to activated output gate (o_gate_act).
+ * @param c_prev Pointer to the previous cell state.
+ * @param dG Pointer to the output pre-activation gradient array.
+ * @param H Hidden dimension.
+ * @param B Batch size.
+ */
 __global__ void compute_dG_kernel(const float *delta_c, const float *g_act,
                                   const float *i_act, const float *f_act,
                                   const float *grad_h, const float *T,
@@ -152,8 +203,18 @@ __global__ void compute_dG_kernel(const float *delta_c, const float *g_act,
     }
 }
 
-// Kernel to reduce (sum) dG over batch dimension to obtain bias gradients.
-// grad_bias[j] = sum_{b=0}^{B-1} dG[b, j] for j in [0, 4H).
+/**
+ * @brief CUDA kernel to reduce (sum) the pre-activation gradients dG over the batch dimension,
+ *        to compute bias gradients.
+ *
+ * For each gate index j in [0, 4H), computes:
+ *    grad_bias[j] = sum_{b=0}^{B-1} dG[b,j]
+ *
+ * @param dG Pointer to the concatenated pre-activation gradients (shape: [B, 4H]).
+ * @param grad_bias Pointer to the output bias gradient array (length: 4H).
+ * @param B Batch size.
+ * @param fourH Total number of gate elements per sample (4 * H).
+ */
 __global__ void reduce_sum_dG_kernel(const float *dG, float *grad_bias, int B, int fourH) {
     int j = blockIdx.x * blockDim.x + threadIdx.x;
     if (j < fourH) {
@@ -165,7 +226,16 @@ __global__ void reduce_sum_dG_kernel(const float *dG, float *grad_bias, int B, i
     }
 }
 
-// Kernel to compute grad_c_prev = delta_c ⊙ f_act.
+/**
+ * @brief CUDA kernel to compute the gradient with respect to the previous cell state.
+ *
+ * Computes grad_c_prev = delta_c ⊙ f_gate_act.
+ *
+ * @param delta_c Pointer to the effective cell gradients (delta_c).
+ * @param f_act Pointer to the activated forget gate (f_gate_act).
+ * @param grad_c_prev Pointer to the output previous cell gradient array.
+ * @param size Total number of elements (B * H).
+ */
 __global__ void compute_grad_c_prev_kernel(const float *delta_c, const float *f_act,
                                            float *grad_c_prev, int size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -174,8 +244,16 @@ __global__ void compute_grad_c_prev_kernel(const float *delta_c, const float *f_
     }
 }
 
-// Kernel for splitting grad_output when only h_new gradient is provided.
-// It copies the first half into grad_h and sets grad_c to zero.
+/**
+ * @brief CUDA kernel for splitting grad_output when only h_new's gradient is provided.
+ *
+ * Copies the first half of grad_output into grad_h and sets grad_c to zero.
+ *
+ * @param grad_out Pointer to the input gradient array (size: B*H).
+ * @param grad_h Pointer to the output gradient for h_new.
+ * @param grad_c Pointer to the output gradient for c_new (set to zero).
+ * @param half_size Half of the total number of hidden elements (B * H).
+ */
 __global__ void split_grad_kernel_single(const float *grad_out, float *grad_h, float *grad_c, int half_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < half_size) {
@@ -184,9 +262,16 @@ __global__ void split_grad_kernel_single(const float *grad_out, float *grad_h, f
     }
 }
 
-// Kernel for splitting grad_output when both h_new and c_new gradients are provided.
-// It copies the first half into grad_h and the second half (starting at index half_size)
-// into grad_c.
+/**
+ * @brief CUDA kernel for splitting grad_output when both h_new and c_new gradients are provided.
+ *
+ * Splits grad_output into grad_h (first half) and grad_c (second half).
+ *
+ * @param grad_out Pointer to the input gradient array (size: 2 * half_size).
+ * @param grad_h Pointer to the output gradient for h_new.
+ * @param grad_c Pointer to the output gradient for c_new.
+ * @param half_size Half the total number of hidden elements (B * H).
+ */
 __global__ void split_grad_kernel_double(const float *grad_out, float *grad_h, float *grad_c, int half_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < half_size) {
@@ -195,36 +280,44 @@ __global__ void split_grad_kernel_double(const float *grad_out, float *grad_h, f
     }
 }
 
+/**
+ * @brief Computes the backward pass for the LSTM cell.
+ *
+ * Given the gradient for the output of the LSTM cell (which may consist of gradients for h_new and c_new),
+ * the function splits the gradients appropriately, computes the effective cell gradient delta_c,
+ * determines raw gate gradients (dG), computes bias gradients, previous cell gradients, and finally
+ * uses matrix multiplications (via Tensor functions) to compute gradients for the input, weights, and previous hidden state.
+ *
+ * @param grad_output Gradient tensor of shape (B, 2H) if both h_new and c_new are provided,
+ *                    or (B, H) if only h_new is provided.
+ * @return A vector containing gradients for:
+ *         {input, h_prev, c_prev, weight_ih, weight_hh, bias_ih, bias_hh}.
+ */
 vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
-    // grad_output has shape (B, 2H) where the first B*H elements are grad_h and
-    // the next B*H are grad_c.
+    // grad_output has shape (B, 2H) where the first B*H elements are grad_h and the next B*H are grad_c.
     bool use_gpu = (grad_output.device() == CUDA);
     int B = batch_size;
     int H = hidden_dim;
     int D = input_dim;
 
-    // Determine if we only have h_new's gradient (size == B*H)
+    // Determine if only h_new's gradient is provided.
     bool single_output = (grad_output.size() == B * H);
 
-    // Allocate tensors for grad_h and grad_c on the proper device.
+    // Allocate grad_h and grad_c on the proper device.
     Tensor grad_h(B * H, grad_output.device());
     Tensor grad_c(B * H, grad_output.device());
 
     if (use_gpu) {
-        // When using CUDA, we cannot iterate directly over device memory from host.
         int half_size = B * H;
         dim3 blockSize(256);
         dim3 gridSize((half_size + blockSize.x - 1) / blockSize.x);
         if (single_output) {
-            // Only h_new's gradient is provided—set grad_c to zero.
             split_grad_kernel_single<<<gridSize, blockSize>>>(grad_output.data(), grad_h.data(), grad_c.data(), half_size);
         } else {
-            // Both gradients are provided.
             split_grad_kernel_double<<<gridSize, blockSize>>>(grad_output.data(), grad_h.data(), grad_c.data(), half_size);
         }
         cudaDeviceSynchronize();
     } else {
-        // CPU branch: iterate over host memory.
         if (single_output) {
             for (int i = 0; i < B * H; i++) {
                 grad_h.data()[i] = grad_output.data()[i];
@@ -239,7 +332,7 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
         }
     }
 
-    // Allocate temporary tensors on the same device.
+    // Allocate temporary tensors.
     Tensor T_tensor(B * H, grad_output.device()); // T = tanh(c_new)
     Tensor delta_c(B * H, grad_output.device());  // effective cell gradient
     Tensor dG(B * 4 * H, grad_output.device());   // concatenated raw gate gradients
@@ -248,14 +341,12 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
     dim3 gridSize((B * H + blockSize.x - 1) / blockSize.x);
 
     if (use_gpu) {
-        // GPU branch: launch kernels. Use data() from each Tensor.
         compute_T_kernel<<<gridSize, blockSize>>>(saved_c_new->data.data(), T_tensor.data(), B * H);
         cudaDeviceSynchronize();
         compute_delta_c_kernel<<<gridSize, blockSize>>>(grad_h.data(), grad_c.data(),
                                                         saved_o_gate_act->data.data(), T_tensor.data(),
                                                         delta_c.data(), B * H);
         cudaDeviceSynchronize();
-        // blocks = (B * H + threads - 1) / threads;
         compute_dG_kernel<<<gridSize, blockSize>>>(delta_c.data(), saved_g_gate_act->data.data(),
                                                    saved_i_gate_act->data.data(), saved_f_gate_act->data.data(),
                                                    grad_h.data(), T_tensor.data(),
@@ -263,7 +354,6 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
                                                    dG.data(), H, B);
         cudaDeviceSynchronize();
     } else {
-        // CPU branch.
         for (int i = 0; i < B * H; i++) {
             T_tensor.data()[i] = tanh(saved_c_new->data.data()[i]);
         }
@@ -307,7 +397,7 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
         memcpy(grad_bias_sum.data(), bias_sum_host.data(), 4 * H * sizeof(float));
     }
 
-    // Split bias gradients equally.
+    // Split bias gradients equally (using a 0.5 scaling factor).
     vector<float> bias_grad_host(4 * H, 0.0f);
     {
         vector<float> temp(4 * H, 0.0f);
@@ -334,7 +424,7 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
         }
     }
 
-    // Compute grad_c_prev = delta_c ⊙ f_act.
+    // Compute grad_c_prev = delta_c ⊙ f_gate_act.
     Tensor grad_c_prev(B * H, grad_output.device());
     gridSize = dim3((B * H + blockSize.x - 1) / blockSize.x);
     if (use_gpu) {
@@ -347,7 +437,7 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
         }
     }
 
-    // Compute linear gradients using Tensor functions.
+    // Compute gradients with respect to input, weight, and previous hidden state using Tensor functions.
     Tensor trans_Wih = Tensor::transpose(saved_weight_ih->data, D, 4 * H);
     Tensor grad_input = Tensor::matmul(dG, trans_Wih, B, 4 * H, D);
 
@@ -360,17 +450,24 @@ vector<Tensor> LSTMCellFunction::backward(const Tensor &grad_output) {
     Tensor trans_h_prev = Tensor::transpose(saved_h_prev->data, B, H);
     Tensor grad_weight_hh = Tensor::matmul(trans_h_prev, dG, H, B, 4 * H);
 
+    // Collect and return gradients in order.
     vector<Tensor> grads;
-    grads.push_back(grad_input);     // grad_input
-    grads.push_back(grad_h_prev);    // grad_h_prev
-    grads.push_back(grad_c_prev);    // grad_c_prev
-    grads.push_back(grad_weight_ih); // grad_weight_ih
-    grads.push_back(grad_weight_hh); // grad_weight_hh
-    grads.push_back(grad_bias_ih);   // grad_bias_ih
-    grads.push_back(grad_bias_hh);   // grad_bias_hh
+    grads.push_back(grad_input);     // Gradient w.r.t. input.
+    grads.push_back(grad_h_prev);    // Gradient w.r.t. previous hidden state.
+    grads.push_back(grad_c_prev);    // Gradient w.r.t. previous cell state.
+    grads.push_back(grad_weight_ih); // Gradient w.r.t. weight_ih.
+    grads.push_back(grad_weight_hh); // Gradient w.r.t. weight_hh.
+    grads.push_back(grad_bias_ih);   // Gradient w.r.t. bias_ih.
+    grads.push_back(grad_bias_hh);   // Gradient w.r.t. bias_hh.
     return grads;
 }
 
+/**
+ * @brief Initializes the elements of a tensor with random values scaled by a limit.
+ *
+ * @param t Reference to the tensor to initialize.
+ * @param limit Scaling constant determining the range of initialization.
+ */
 static void init_tensor(Tensor &t, float limit) {
     size_t size = t.size();
     for (size_t i = 0; i < size; i++) {
@@ -378,6 +475,16 @@ static void init_tensor(Tensor &t, float limit) {
     }
 }
 
+/**
+ * @brief Constructs an LSTMCell.
+ *
+ * Initializes the weight matrices and biases for the LSTM cell using uniform initialization,
+ * and transfers them to CUDA if required.
+ *
+ * @param input_dim Dimensionality of the input vector.
+ * @param hidden_dim Dimensionality of the hidden state.
+ * @param device Target device (CPU or CUDA).
+ */
 LSTMCell::LSTMCell(int input_dim, int hidden_dim, Device device)
     : input_dim(input_dim), hidden_dim(hidden_dim), device(device) {
     int gate_size = 4 * hidden_dim;
@@ -398,14 +505,14 @@ LSTMCell::LSTMCell(int input_dim, int hidden_dim, Device device)
         w_hh.toCUDA();
     weight_hh = make_shared<Variable>(w_hh, true, "weight_hh");
 
-    // Create bias_ih on CPU and convert if needed.
+    // Create bias_ih on CPU and transfer if needed.
     Tensor b_ih(gate_size, CPU);
     b_ih.fill(0.0f);
     if (device == CUDA)
         b_ih.toCUDA();
     bias_ih = make_shared<Variable>(b_ih, true, "bias_ih");
 
-    // Create bias_hh on CPU and convert if needed.
+    // Create bias_hh on CPU and transfer if needed.
     Tensor b_hh(gate_size, CPU);
     b_hh.fill(0.0f);
     if (device == CUDA)
@@ -413,19 +520,31 @@ LSTMCell::LSTMCell(int input_dim, int hidden_dim, Device device)
     bias_hh = make_shared<Variable>(b_hh, true, "bias_hh");
 }
 
+/**
+ * @brief Forward pass of the LSTM cell module.
+ *
+ * Processes a sequence time step by using LSTMCellFunction::apply on the provided inputs.
+ *
+ * @param inputs A vector containing exactly three inputs: {input, h_prev, c_prev}.
+ * @return A vector containing the new hidden state and new cell state.
+ */
 vector<VarPtr> LSTMCell::forward(const vector<VarPtr> &inputs) {
-    // Make sure exactly three inputs are provided.
+    // Ensure exactly three inputs are provided.
     assert(inputs.size() == 3 && "LSTMCell expects exactly three inputs: {input, h_prev, c_prev}");
 
-    // Use our LSTMCellFunction::apply method. This function returns a pair {h_new, c_new}.
+    // Compute the new states using the LSTM cell function.
     auto outputs = LSTMCellFunction::apply(inputs[0], inputs[1], inputs[2],
                                            weight_ih, weight_hh,
                                            bias_ih, bias_hh,
                                            input_dim, hidden_dim);
-    // Return both outputs as a vector.
     return {outputs.first, outputs.second};
 }
 
+/**
+ * @brief Returns the learnable parameters of the LSTM cell.
+ *
+ * @return A vector containing weight_ih, weight_hh, bias_ih, and bias_hh.
+ */
 vector<VarPtr> LSTMCell::parameters() {
     return {weight_ih, weight_hh, bias_ih, bias_hh};
 }

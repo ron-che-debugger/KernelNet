@@ -1,3 +1,14 @@
+/**
+ * @file trainer.hpp
+ * @brief Defines a simple Trainer class for model training with SGD and autograd.
+ *
+ * The trainer performs:
+ * - Forward pass through the model
+ * - Loss computation using a pluggable loss function
+ * - Backward pass to compute gradients
+ * - Parameter update using SGD
+ */
+
 #pragma once
 
 #include "autograd.hpp"
@@ -10,46 +21,67 @@
 
 using namespace std;
 
-// Define a loss function type alias:
-// It takes a prediction (VarPtr) and a target Tensor reference,
-// and returns a VarPtr representing the loss.
+/**
+ * @brief Alias for a loss function.
+ *
+ * Accepts:
+ *   - prediction: VarPtr output from the model
+ *   - target: ground truth Tensor
+ * Returns:
+ *   - a scalar loss as VarPtr
+ */
 using LossFunction = std::function<VarPtr(const VarPtr &, const Tensor &)>;
 
+/**
+ * @brief Trainer class that handles forward, backward, and optimization steps.
+ */
 class Trainer {
   public:
-    // The model (e.g., Sequential) must follow the unified Module interface.
-    shared_ptr<Sequential> model;
-    // Optimizer, e.g. SGD.
-    SGD optimizer;
-    // Loss function to compute the loss during training.
-    LossFunction loss_fn;
+    shared_ptr<Sequential> model; ///< The model to be trained
+    SGD optimizer;                ///< Optimizer (e.g., SGD)
+    LossFunction loss_fn;         ///< Loss function (e.g., MSE or CrossEntropy)
 
-    // Constructor: takes a model, an optimizer, and optionally a loss function.
-    // Default loss function is MSEFunction::apply.
+    /**
+     * @brief Constructs a Trainer object.
+     *
+     * @param model Shared pointer to a Sequential model.
+     * @param optimizer SGD optimizer instance.
+     * @param loss_fn Optional loss function (defaults to MSE).
+     */
     Trainer(const shared_ptr<Sequential> &model, const SGD &optimizer,
             LossFunction loss_fn = MSEFunction::apply)
         : model(model), optimizer(optimizer), loss_fn(loss_fn) {}
 
-    // Train the model for one epoch.
-    // Here, inputs and targets are assumed to be provided as vectors of VarPtr.
-    // For each sample, we perform a forward pass, compute the loss,
-    // backpropagate the loss, update parameters, and zero the gradients.
+    /**
+     * @brief Trains the model for one epoch on the provided data.
+     *
+     * Performs the following steps for each input-target pair:
+     * - Forward pass
+     * - Loss computation
+     * - Backward pass
+     * - Optimizer step
+     * - Gradient reset
+     *
+     * @param inputs Vector of input VarPtr (batch of samples).
+     * @param targets Vector of ground truth VarPtr (same size as inputs).
+     */
     void trainEpoch(const vector<VarPtr> &inputs, const vector<VarPtr> &targets) {
         assert(inputs.size() == targets.size() && "Mismatched number of inputs and targets");
+
         for (size_t i = 0; i < inputs.size(); ++i) {
-            // Forward pass:
+            // Forward pass.
             VarPtr prediction = model->forward(inputs[i]);
-            // Compute the loss using the configured loss function.
-            // We assume that the target variable stores a tensor in its 'data' member.
+
+            // Compute loss.
             VarPtr loss = loss_fn(prediction, targets[i]->data);
 
             // Backward pass to compute gradients.
             loss->backward(loss->data);
 
-            // Update the model parameters.
+            // Parameter update step.
             optimizer.step();
 
-            // Zero out gradients for the next iteration.
+            // Clear gradients before the next sample.
             optimizer.zero_grad();
         }
     }

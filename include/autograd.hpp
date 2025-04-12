@@ -1,3 +1,14 @@
+/**
+ * @file autograd.hpp
+ * @brief Defines core autograd components including Variables and differentiable Functions.
+ *
+ * This file implements a simple autograd engine with:
+ * - The `Variable` class for tracking data and gradients
+ * - The `Function` base class for representing differentiable operations
+ * - Derived function classes for addition, multiplication, matrix multiplication, etc.
+ * - Forward and backward graph construction
+ */
+
 #pragma once
 
 #include "tensor.hpp"
@@ -10,138 +21,203 @@
 
 using namespace std;
 
-// Forward declarations.
+// Forward declarations
 class Variable;
 class Function;
 
 using VarPtr = shared_ptr<Variable>;
 using FuncPtr = shared_ptr<Function>;
 
-// --- Autograd Classes ---
-
-// Base class for functions in the computation graph.
-// Inputs are stored as weak pointers to avoid reference cycles.
+/**
+ * @brief Abstract base class for all differentiable operations.
+ *
+ * Each function subclass implements the `backward()` method to return
+ * the gradients with respect to its inputs given the output gradient.
+ */
 class Function {
   public:
-    vector<weak_ptr<Variable>> inputs;
-    weak_ptr<Variable> output;
+    vector<weak_ptr<Variable>> inputs; ///< Weak references to input variables
+    weak_ptr<Variable> output;         ///< Weak reference to the output variable
 
     virtual ~Function() {}
-    // Given the gradient of the output, compute the gradients for each input.
+
+    /**
+     * @brief Computes gradients with respect to each input.
+     * @param grad_output The gradient flowing into the output.
+     * @return A vector of gradients corresponding to each input.
+     */
     virtual vector<Tensor> backward(const Tensor &grad_output) = 0;
 };
 
-// Variable wraps a Tensor and holds gradient information along with a pointer to its creator.
+/**
+ * @brief A differentiable variable in the computation graph.
+ *
+ * Wraps a tensor and optionally tracks gradients and a creator function.
+ */
 class Variable {
   public:
-    Tensor data;
-    Tensor grad;
-    bool requires_grad;
-    bool grad_initialized;
-    int pending_count;
-    shared_ptr<Function> creator;
-    string debug_name; // Optional name for tracing.
+    Tensor data;                  ///< The tensor value.
+    Tensor grad;                  ///< The accumulated gradient.
+    bool requires_grad;           ///< Whether gradient should be tracked.
+    bool grad_initialized;        ///< Whether grad was initialized.
+    int pending_count;            ///< Used to handle multiple backward paths.
+    shared_ptr<Function> creator; ///< The function that produced this variable.
+    string debug_name;            ///< Optional name for debugging.
 
-    // Constructor.
+    /**
+     * @brief Constructor for Variable.
+     * @param data The tensor to wrap.
+     * @param requires_grad Whether this variable should track gradients.
+     * @param name Optional debug name.
+     */
     Variable(const Tensor &data, bool requires_grad = false, const string &name = "");
 
-    // Set the creator of this variable.
+    /**
+     * @brief Sets the function that created this variable.
+     * @param func The creator function.
+     */
     void set_creator(const FuncPtr &func);
 
-    // Backward pass: accumulate gradient and propagate when all children contributions are received.
+    /**
+     * @brief Initiates the backward pass from this variable.
+     * @param grad_output The gradient of the final output w.r.t this variable.
+     */
     void backward(const Tensor &grad_output);
 
-    // Returns a detached copy (without tracking gradients).
+    /**
+     * @brief Returns a detached copy that does not track gradients.
+     * @return A shared pointer to the detached Variable.
+     */
     VarPtr detach();
 };
 
-// --- Function Classes Declarations ---
+// ------------------------------ Function Implementations ------------------------------
 
+/**
+ * @brief Element-wise addition: z = a + b
+ */
 class AddFunction : public Function {
   public:
-    VarPtr saved_a;
-    VarPtr saved_b;
+    VarPtr saved_a, saved_b;
 
     static VarPtr apply(const VarPtr &a, const VarPtr &b);
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Element-wise subtraction: z = a - b
+ */
 class SubtractFunction : public Function {
   public:
-    VarPtr saved_a;
-    VarPtr saved_b;
+    VarPtr saved_a, saved_b;
 
     static VarPtr apply(const VarPtr &a, const VarPtr &b);
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Element-wise multiplication: z = a * b
+ */
 class MultiplyFunction : public Function {
   public:
-    VarPtr saved_a;
-    VarPtr saved_b;
+    VarPtr saved_a, saved_b;
 
     static VarPtr apply(const VarPtr &a, const VarPtr &b);
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Matrix multiplication: z = a × b
+ */
 class MatMulFunction : public Function {
   public:
     int M, K, N;
-    VarPtr saved_a;
-    VarPtr saved_b;
+    VarPtr saved_a, saved_b;
 
     static VarPtr apply(const VarPtr &a, const VarPtr &b, int M, int K, int N);
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Reduces all elements to a scalar via summation: z = sum(input)
+ */
 class SumFunction : public Function {
   public:
     int input_size;
     VarPtr saved_input;
 
     static VarPtr apply(const VarPtr &input);
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Element-wise natural logarithm: z = log(input)
+ */
 class LogFunction : public Function {
   public:
     VarPtr saved_input;
-    static VarPtr apply(const VarPtr &input);
 
-    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+    static VarPtr apply(const VarPtr &input);
+    vector<Tensor> backward(const Tensor &grad_output) override;
 };
 
+/**
+ * @brief Mean squared error loss: loss = mean((prediction - target)^2)
+ */
 class MSEFunction : public Function {
   public:
+    /**
+     * @brief Computes the MSE loss.
+     * @param prediction Model output wrapped in a Variable.
+     * @param target Ground truth as a Tensor.
+     * @return Scalar loss variable.
+     */
     static VarPtr apply(const VarPtr &prediction, const Tensor &target);
 };
 
+/**
+ * @brief Cross-entropy loss with optional softmax: loss = -target · log(prediction)
+ */
 class CrossEntropyLossFunction : public Function {
   public:
+    /**
+     * @brief Computes the cross-entropy loss.
+     * @param prediction Logits or softmax predictions.
+     * @param target One-hot label vector.
+     * @param num_classes Number of classes.
+     * @return Scalar loss variable.
+     */
     static VarPtr apply(const VarPtr &prediction, const Tensor &target, int num_classes);
 };
 
+/**
+ * @brief Slices a tensor along its feature dimension.
+ *
+ * Extracts a sub-tensor from columns [start, end) across all rows.
+ */
 class SliceFunction : public Function {
   public:
     VarPtr saved_input;
 
-    // Dimensions for slicing:
-    // batch_size: the number of rows (samples) in the input tensor.
-    // total_width: the total number of columns (features) in the input tensor.
-    // start: the starting index (inclusive) for slicing along the feature dimension.
-    // end: the ending index (non-inclusive) for slicing.
-    int batch_size;
-    int total_width;
-    int start;
-    int end;
+    int batch_size;  ///< Number of rows (samples)
+    int total_width; ///< Total number of columns in input
+    int start;       ///< Start index for slicing (inclusive)
+    int end;         ///< End index for slicing (exclusive)
 
-    // Static forward function.
-    // Interprets the input tensor as having shape [batch_size, total_width]
-    // and extracts the columns in the interval [start, end), resulting in a tensor
-    // of shape [batch_size, slice_length] where slice_length = end - start.
+    /**
+     * @brief Forward slicing operation.
+     * @param input Input variable with shape [batch_size, total_width]
+     * @param batch_size Number of rows.
+     * @param start Start index (inclusive).
+     * @param end End index (exclusive).
+     * @return Sliced output variable.
+     */
     static VarPtr apply(const VarPtr &input, int batch_size, int start, int end);
 
-    // Backward pass: maps the gradients from the sliced output back to the corresponding
-    // indices of the input tensor, filling the positions outside the slice with zeros.
+    /**
+     * @brief Backward pass for slice: propagates gradient back into correct positions.
+     * @param grad_output Gradient flowing into sliced output.
+     * @return A vector with a single tensor gradient for the input.
+     */
     vector<Tensor> backward(const Tensor &grad_output) override;
 };

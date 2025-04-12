@@ -2,8 +2,13 @@
 
 using namespace std;
 
-// ---------- CUDA Kernels ----------
-
+/**
+ * @brief CUDA kernel to fill an array with a constant value.
+ *
+ * @param out Pointer to the output array.
+ * @param value The constant value to fill.
+ * @param size Total number of elements in the array.
+ */
 static __global__ void fill_kernel(float *out, float value, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
@@ -11,6 +16,14 @@ static __global__ void fill_kernel(float *out, float value, size_t size) {
     }
 }
 
+/**
+ * @brief CUDA kernel to compute the sum over repeated segments for gradient broadcasting.
+ *
+ * @param grad Pointer to the input gradient array.
+ * @param out Pointer to the output array where the summed gradient is stored.
+ * @param total_size Total number of elements in grad.
+ * @param small_size Number of elements in the smaller dimension (the reduction axis).
+ */
 static __global__ void broadcast_sum_kernel(const float *grad, float *out, size_t total_size, size_t small_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < small_size) {
@@ -23,8 +36,17 @@ static __global__ void broadcast_sum_kernel(const float *grad, float *out, size_
     }
 }
 
-// ---------- Variable Implementation ----------
+// -------------------- Variable Implementation --------------------
 
+/**
+ * @brief Constructs a Variable with the given data.
+ *
+ * If gradient tracking is enabled, initializes the gradient to zeros.
+ *
+ * @param data Tensor data.
+ * @param requires_grad Flag indicating if gradient tracking is enabled.
+ * @param name Optional debug name.
+ */
 Variable::Variable(const Tensor &data, bool requires_grad, const string &name)
     : data(data), requires_grad(requires_grad), grad_initialized(false), pending_count(0), debug_name(name) {
     if (requires_grad) {
@@ -33,10 +55,23 @@ Variable::Variable(const Tensor &data, bool requires_grad, const string &name)
     }
 }
 
+/**
+ * @brief Sets the creator function (the function that produced this variable).
+ *
+ * @param func Shared pointer to the creator function.
+ */
 void Variable::set_creator(const FuncPtr &func) {
     creator = func;
 }
 
+/**
+ * @brief Performs the backward pass for gradient propagation.
+ *
+ * If this variable requires gradient, accumulates the gradient and, once all
+ * contributions are received, propagates backward to inputs.
+ *
+ * @param grad_output The gradient from the next layer.
+ */
 void Variable::backward(const Tensor &grad_output) {
     if (requires_grad) {
         if (!grad_initialized) {
@@ -61,55 +96,26 @@ void Variable::backward(const Tensor &grad_output) {
     }
 }
 
-/*
-void Variable::backward(const Tensor &grad_output) {
-    string name = debug_name.empty() ? ("@" + to_string((uintptr_t)this)) : debug_name;
-    cout << "[DEBUG] Enter backward for Variable " << name
-         << " | size: " << data.size() << endl;
-
-    if (requires_grad) {
-        if (!grad_initialized) {
-            grad = grad_output;
-            grad_initialized = true;
-            cout << "[DEBUG] Gradient initialized for Variable " << name << endl;
-        } else {
-            grad = Tensor::add(grad, grad_output);
-            cout << "[DEBUG] Gradient accumulated for Variable " << name << endl;
-        }
-
-        if (pending_count > 0)
-            pending_count--;
-        cout << "[DEBUG] Variable " << name << " pending_count now " << pending_count << endl;
-
-        if (creator && pending_count == 0) {
-            cout << "[DEBUG] Variable " << name << " has creator, invoking backward." << endl;
-            vector<Tensor> input_grads = creator->backward(grad);
-            cout << "[DEBUG] Creator backward returned for Variable " << name << endl;
-            for (size_t i = 0; i < creator->inputs.size(); ++i) {
-                if (auto inp = creator->inputs[i].lock()) {
-                    string inp_name = inp->debug_name.empty() ? ("@" + to_string((uintptr_t)inp.get())) : inp->debug_name;
-                    cout << "[DEBUG] Propagating to input " << i << " (Variable "
-                         << inp_name << ", size: " << inp->data.size() << ")" << endl;
-                    if (inp->requires_grad) {
-                        inp->backward(input_grads[i]);
-                    } else {
-                        cout << "[DEBUG] Skipped input " << i << " (no grad required)" << endl;
-                    }
-                } else {
-                    cout << "[ERROR] Input " << i << " is expired or null!" << endl;
-                }
-            }
-        }
-    }
-}
-*/
-
+/**
+ * @brief Returns a copy of this variable detached from the autograd graph.
+ *
+ * @return A new Variable containing the same data but not tracking gradients.
+ */
 VarPtr Variable::detach() {
     return make_shared<Variable>(data, false);
 }
 
-// ---------- AddFunction Implementation ----------
+// -------------------- AddFunction Implementation --------------------
 
+/**
+ * @brief Applies the element-wise addition function.
+ *
+ * Saves the input variables and creates the output as the broadcasted sum of the inputs.
+ *
+ * @param a First input variable.
+ * @param b Second input variable.
+ * @return The output variable representing a + b.
+ */
 VarPtr AddFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<AddFunction>();
     if (a->requires_grad)
@@ -128,6 +134,14 @@ VarPtr AddFunction::apply(const VarPtr &a, const VarPtr &b) {
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for the addition function.
+ *
+ * Propagates the gradient to both inputs, summing appropriately if broadcasting occurred.
+ *
+ * @param grad_output The gradient of the loss with respect to the output.
+ * @return A vector containing the gradients for each input.
+ */
 vector<Tensor> AddFunction::backward(const Tensor &grad_output) {
     auto inp0 = saved_a;
     auto inp1 = saved_b;
@@ -179,8 +193,17 @@ vector<Tensor> AddFunction::backward(const Tensor &grad_output) {
     return {grad_output, grad_output};
 }
 
-// ---------- SubtractFunction Implementation ----------
+// -------------------- SubtractFunction Implementation --------------------
 
+/**
+ * @brief Applies the element-wise subtraction function.
+ *
+ * Computes a - b and saves the input variables.
+ *
+ * @param a First input variable.
+ * @param b Second input variable.
+ * @return The output variable representing a - b.
+ */
 VarPtr SubtractFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<SubtractFunction>();
     if (a->requires_grad)
@@ -199,6 +222,15 @@ VarPtr SubtractFunction::apply(const VarPtr &a, const VarPtr &b) {
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for subtraction.
+ *
+ * The gradient with respect to the first input is unchanged,
+ * while the gradient for the second input is multiplied by -1.
+ *
+ * @param grad_output The gradient of the loss with respect to the output.
+ * @return A vector containing gradients for the inputs.
+ */
 vector<Tensor> SubtractFunction::backward(const Tensor &grad_output) {
     Tensor neg_one(grad_output.size(), grad_output.device());
     neg_one.fill(-1.0f);
@@ -210,8 +242,17 @@ vector<Tensor> SubtractFunction::backward(const Tensor &grad_output) {
     return {grad_output, grad_b};
 }
 
-// ---------- MultiplyFunction Implementation ----------
+// -------------------- MultiplyFunction Implementation --------------------
 
+/**
+ * @brief Applies the element-wise multiplication function.
+ *
+ * Computes a * b and stores both inputs for use in the backward pass.
+ *
+ * @param a First input variable.
+ * @param b Second input variable.
+ * @return The output variable representing a * b.
+ */
 VarPtr MultiplyFunction::apply(const VarPtr &a, const VarPtr &b) {
     auto func = make_shared<MultiplyFunction>();
     if (a->requires_grad)
@@ -230,14 +271,36 @@ VarPtr MultiplyFunction::apply(const VarPtr &a, const VarPtr &b) {
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for multiplication.
+ *
+ * Uses the chain rule: grad_a = grad_output * b and grad_b = grad_output * a.
+ *
+ * @param grad_output The gradient of the loss with respect to the output.
+ * @return A vector containing gradients for each input.
+ */
 vector<Tensor> MultiplyFunction::backward(const Tensor &grad_output) {
     Tensor grad_a = Tensor::multiply(grad_output, saved_b->data);
     Tensor grad_b = Tensor::multiply(grad_output, saved_a->data);
     return {grad_a, grad_b};
 }
 
-// ---------- MatMulFunction Implementation ----------
+// -------------------- MatMulFunction Implementation --------------------
 
+/**
+ * @brief Applies the matrix multiplication function.
+ *
+ * Computes the product of two matrices with shapes:
+ *   - A: (M, K)
+ *   - B: (K, N)
+ *
+ * @param a First input variable.
+ * @param b Second input variable.
+ * @param M Number of rows in the first matrix.
+ * @param K Shared dimension.
+ * @param N Number of columns in the second matrix.
+ * @return The output variable representing the matrix product.
+ */
 VarPtr MatMulFunction::apply(const VarPtr &a, const VarPtr &b, int M, int K, int N) {
     auto func = make_shared<MatMulFunction>();
     if (a->requires_grad)
@@ -259,6 +322,16 @@ VarPtr MatMulFunction::apply(const VarPtr &a, const VarPtr &b, int M, int K, int
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for matrix multiplication.
+ *
+ * Computes gradients using transposes:
+ *   - grad_a = grad_output * B^T
+ *   - grad_b = A^T * grad_output
+ *
+ * @param grad_output The gradient of the loss with respect to the output.
+ * @return A vector containing gradients with respect to each input.
+ */
 vector<Tensor> MatMulFunction::backward(const Tensor &grad_output) {
     auto inp1 = saved_a;
     auto inp2 = saved_b;
@@ -269,8 +342,14 @@ vector<Tensor> MatMulFunction::backward(const Tensor &grad_output) {
     return {grad_a, grad_b};
 }
 
-// ---------- SumFunction Implementation ----------
+// -------------------- SumFunction Implementation --------------------
 
+/**
+ * @brief Applies the summation function to reduce all elements to a scalar.
+ *
+ * @param input The input variable to sum.
+ * @return A variable containing the scalar sum.
+ */
 VarPtr SumFunction::apply(const VarPtr &input) {
     auto func = make_shared<SumFunction>();
     if (input->requires_grad)
@@ -288,6 +367,14 @@ VarPtr SumFunction::apply(const VarPtr &input) {
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for the summation function.
+ *
+ * The gradient for every element is the upstream gradient.
+ *
+ * @param grad_output The gradient of the loss with respect to the sum output.
+ * @return A vector containing the gradient for the input.
+ */
 vector<Tensor> SumFunction::backward(const Tensor &grad_output) {
     size_t n = saved_input->data.size();
     Tensor grad_input(n, saved_input->data.device());
@@ -306,8 +393,15 @@ vector<Tensor> SumFunction::backward(const Tensor &grad_output) {
     return {grad_input};
 }
 
-// ---------- LogFunction Implementation ----------
-// Kernel for the forward pass: compute element-wise log.
+// -------------------- LogFunction Implementation --------------------
+
+/**
+ * @brief CUDA kernel for the forward pass of the element-wise logarithm.
+ *
+ * @param in Pointer to the input array.
+ * @param out Pointer to the output array.
+ * @param size Number of elements in the array.
+ */
 __global__ void log_forward_kernel(const float *in, float *out, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     const float epsilon = 1e-8f;
@@ -315,7 +409,17 @@ __global__ void log_forward_kernel(const float *in, float *out, size_t size) {
         out[idx] = logf(in[idx] + epsilon);
     }
 }
-// Kernel for the backward pass: compute derivative of log (1/x) multiplied by grad_output.
+
+/**
+ * @brief CUDA kernel for the backward pass of the logarithm.
+ *
+ * Computes derivative 1/x * grad_out.
+ *
+ * @param grad_out Pointer to the gradient from the next layer.
+ * @param in Pointer to the original input array.
+ * @param grad_in Pointer to the computed input gradient array.
+ * @param size Number of elements.
+ */
 __global__ void log_backward_kernel(const float *grad_out, const float *in, float *grad_in, size_t size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     const float epsilon = 1e-8f;
@@ -324,20 +428,20 @@ __global__ void log_backward_kernel(const float *grad_out, const float *in, floa
     }
 }
 
-// ---------- LogFunction Implementation ----------
-
+/**
+ * @brief Applies the element-wise logarithm function.
+ *
+ * Computes log(input + epsilon) element-wise.
+ *
+ * @param input The input variable.
+ * @return The output variable after applying the logarithm.
+ */
 VarPtr LogFunction::apply(const VarPtr &input) {
-    // Create an instance of LogFunction to hold saved state.
     auto func = make_shared<LogFunction>();
-
-    // Save input for backward computation.
     func->saved_input = input;
     func->inputs.push_back(input);
-
     size_t size = input->data.size();
-    // Allocate an output tensor on the same device as the input.
     Tensor out_tensor(size, input->data.device());
-
     if (input->data.device() == CPU) {
         const float *in_ptr = input->data.data();
         float *out_ptr = out_tensor.data();
@@ -350,7 +454,6 @@ VarPtr LogFunction::apply(const VarPtr &input) {
         log_forward_kernel<<<gridSize, blockSize>>>(input->data.data(), out_tensor.data(), size);
         cudaDeviceSynchronize();
     }
-
     bool req_grad = input->requires_grad;
     auto out = make_shared<Variable>(out_tensor, req_grad, "Log_out");
     out->set_creator(func);
@@ -358,10 +461,17 @@ VarPtr LogFunction::apply(const VarPtr &input) {
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for the logarithm function.
+ *
+ * Uses the derivative: 1 / (input + epsilon) multiplied element-wise with grad_output.
+ *
+ * @param grad_output The gradient of the loss with respect to the output.
+ * @return A vector containing the gradient with respect to the input.
+ */
 vector<Tensor> LogFunction::backward(const Tensor &grad_output) {
     size_t size = grad_output.size();
     Tensor grad_input(size, grad_output.device());
-
     if (grad_output.device() == CPU) {
         const float *grad_out_ptr = grad_output.data();
         const float *in_ptr = saved_input->data.data();
@@ -378,8 +488,17 @@ vector<Tensor> LogFunction::backward(const Tensor &grad_output) {
     return {grad_input};
 }
 
-// ---------- MSEFunction Implementation ----------
+// -------------------- MSEFunction Implementation --------------------
 
+/**
+ * @brief Applies the Mean Squared Error (MSE) loss function.
+ *
+ * Computes loss = mean((prediction - target)^2).
+ *
+ * @param prediction The predicted output variable.
+ * @param target The target tensor.
+ * @return A variable representing the scalar MSE loss.
+ */
 VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
     auto target_var = make_shared<Variable>(target, false, "target");
     auto diff = SubtractFunction::apply(prediction, target_var);
@@ -398,54 +517,60 @@ VarPtr MSEFunction::apply(const VarPtr &prediction, const Tensor &target) {
     return mse_loss;
 }
 
-// ---------- CrossEntropyLossFunction Implementation ----------
+// -------------------- CrossEntropyLossFunction Implementation --------------------
 
-// Implementation of the cross-entropy loss function.
+/**
+ * @brief Applies the Cross-Entropy Loss function.
+ *
+ * Computes loss = -sum(target ⊙ log(prediction))/batch_size when num_classes > 0,
+ * otherwise multiplies the summed loss by -1.
+ *
+ * @param prediction The predicted output variable.
+ * @param target The target tensor (typically one-hot encoded).
+ * @param num_classes The number of classes.
+ * @return A variable representing the scalar cross-entropy loss.
+ */
 VarPtr CrossEntropyLossFunction::apply(const VarPtr &prediction, const Tensor &target, int num_classes) {
-    // Wrap the target Tensor in a Variable (no gradient tracking).
     auto target_var = make_shared<Variable>(target, false, "target");
-
-    // Compute element-wise natural logarithm of the predictions.
     auto log_pred = LogFunction::apply(prediction);
     log_pred->debug_name = "log_pred";
-
-    // Multiply element-wise: target ⊙ log(prediction)
     auto prod = MultiplyFunction::apply(target_var, log_pred);
     prod->debug_name = "prod";
-
-    // Sum over all elements (aggregates the loss across all dimensions)
     auto sum_loss = SumFunction::apply(prod);
     sum_loss->debug_name = "sum_loss";
 
     if (num_classes > 0) {
-        // Compute batch size by dividing the total number of elements in target by num_classes.
         int batch_size = target.size() / num_classes;
-
-        // Create a scaling tensor holding -1.0 / batch_size.
         Tensor scale_tensor(1, sum_loss->data.device());
         scale_tensor.fill(-1.0f / static_cast<float>(batch_size));
         auto scale = make_shared<Variable>(scale_tensor, false, "scale");
-
-        // Multiply the summed loss by the scaling factor so that the loss is averaged per sample.
         auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, scale);
         cross_entropy_loss->debug_name = "cross_entropy_loss";
         return cross_entropy_loss;
     } else {
-        // Regular behavior: simply multiply by -1.
         Tensor neg_tensor(1, sum_loss->data.device());
         neg_tensor.fill(-1.0f);
         auto neg_one = make_shared<Variable>(neg_tensor, false, "neg_one");
-
         auto cross_entropy_loss = MultiplyFunction::apply(sum_loss, neg_one);
         cross_entropy_loss->debug_name = "cross_entropy_loss";
         return cross_entropy_loss;
     }
 }
 
-// CUDA kernel for the forward pass.
-// It copies the slice from the input to the output.
-// Input is interpreted as a 2D array of shape [batch_size, total_width] stored in row-major order.
-// The output has shape [batch_size, slice_len], with slice_len = end - start.
+// -------------------- SliceFunction Implementation --------------------
+
+/**
+ * @brief CUDA kernel for the forward pass of the slice function.
+ *
+ * Copies a slice from the input tensor to the output tensor.
+ *
+ * @param in Pointer to the input array.
+ * @param out Pointer to the output array.
+ * @param total_width Total width of the input tensor (number of columns).
+ * @param slice_start Starting index for the slice (inclusive).
+ * @param slice_len Length of the slice.
+ * @param batch_size Number of rows in the input tensor.
+ */
 __global__ void slice_forward_kernel(const float *in, float *out, int total_width, int slice_start, int slice_len, int batch_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = batch_size * slice_len;
@@ -456,11 +581,19 @@ __global__ void slice_forward_kernel(const float *in, float *out, int total_widt
     }
 }
 
-// CUDA kernel for the backward pass.
-// It writes the gradient from the sliced output into the correct positions of the
-// input gradient tensor. The positions that are not part of the slice are set to zero.
-// Input grad_output is of shape [batch_size, slice_len] and grad_input is of shape
-// [batch_size, total_width].
+/**
+ * @brief CUDA kernel for the backward pass of the slice function.
+ *
+ * Propagates gradients from the sliced output back into the proper locations
+ * of the input gradient tensor, setting non-sliced elements to zero.
+ *
+ * @param grad_out Pointer to the gradient output array (sliced).
+ * @param grad_in Pointer to the gradient input array (full tensor).
+ * @param total_width Total width of the input tensor.
+ * @param slice_start Starting index of the slice.
+ * @param slice_len Length of the slice.
+ * @param batch_size Number of rows in the input tensor.
+ */
 __global__ void slice_backward_kernel(const float *grad_out, float *grad_in, int total_width, int slice_start, int slice_len, int batch_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = batch_size * total_width;
@@ -468,7 +601,6 @@ __global__ void slice_backward_kernel(const float *grad_out, float *grad_in, int
         int b = idx / total_width;
         int j = idx % total_width;
         float grad = 0.0f;
-        // If j is within the slice, copy the corresponding gradient.
         if (j >= slice_start && j < slice_start + slice_len) {
             int i = j - slice_start;
             grad = grad_out[b * slice_len + i];
@@ -477,25 +609,31 @@ __global__ void slice_backward_kernel(const float *grad_out, float *grad_in, int
     }
 }
 
+/**
+ * @brief Applies the slice function to extract a subset of features.
+ *
+ * Interprets the input tensor as a 2D array with shape [batch_size, total_width]
+ * and extracts columns in the interval [start, end). The output tensor has shape
+ * [batch_size, slice_len] where slice_len = end - start.
+ *
+ * @param input Input variable.
+ * @param batch_size Number of rows in the input.
+ * @param start Starting column index (inclusive).
+ * @param end Ending column index (non-inclusive).
+ * @return Output variable containing the sliced tensor.
+ */
 VarPtr SliceFunction::apply(const VarPtr &input, int batch_size, int start, int end) {
     auto func = make_shared<SliceFunction>();
-    // Save the input as a hard pointer for backward.
     func->saved_input = input;
-
     func->batch_size = batch_size;
     func->start = start;
     func->end = end;
-
-    // Compute total_width from the input.
     int total_size = input->data.size();
     func->total_width = total_size / batch_size;
     int slice_len = end - start;
-
     Tensor out_tensor(batch_size * slice_len, input->data.device());
     int total = batch_size * slice_len;
-
     if (input->data.device() == CPU) {
-        // CPU branch: simple loop.
         const float *in_ptr = input->data.data();
         float *out_ptr = out_tensor.data();
         for (int b = 0; b < batch_size; b++) {
@@ -504,50 +642,49 @@ VarPtr SliceFunction::apply(const VarPtr &input, int batch_size, int start, int 
             }
         }
     } else {
-        // CUDA branch.
         dim3 blockSize(256);
         dim3 gridSize((total + blockSize.x - 1) / blockSize.x);
         slice_forward_kernel<<<gridSize, blockSize>>>(input->data.data(), out_tensor.data(), func->total_width, start, slice_len, batch_size);
         cudaDeviceSynchronize();
     }
-
     bool req_grad = input->requires_grad;
     auto out = make_shared<Variable>(out_tensor, req_grad, "Slice_out");
     out->set_creator(func);
     func->output = out;
-
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for the slice function.
+ *
+ * Maps the gradient from the sliced output back to the corresponding positions
+ * in the input gradient tensor, setting elements outside the slice to zero.
+ *
+ * @param grad_output Gradient tensor from the next layer (of shape [batch_size, slice_len]).
+ * @return A vector containing the gradient tensor for the input.
+ */
 vector<Tensor> SliceFunction::backward(const Tensor &grad_output) {
     int slice_len = end - start;
     int grad_in_size = batch_size * total_width;
     Tensor grad_input(grad_in_size, grad_output.device());
-
     if (grad_output.device() == CPU) {
-        // CPU branch: initialize grad_input to zeros and then copy.
         float *grad_in_ptr = grad_input.data();
         const float *grad_out_ptr = grad_output.data();
-        // Zero initialize.
         for (int i = 0; i < grad_in_size; i++) {
             grad_in_ptr[i] = 0;
         }
-        // For each batch, copy the corresponding slice from grad_output.
         for (int b = 0; b < batch_size; b++) {
             for (int i = 0; i < slice_len; i++) {
                 grad_in_ptr[b * total_width + start + i] = grad_out_ptr[b * slice_len + i];
             }
         }
     } else {
-        // CUDA branch.
         int total = batch_size * total_width;
         dim3 blockSize(256);
         dim3 gridSize((total + blockSize.x - 1) / blockSize.x);
-        // Zero initialize grad_input on device.
         cudaMemset(grad_input.data(), 0, grad_in_size * sizeof(float));
         slice_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_input.data(), total_width, start, slice_len, batch_size);
         cudaDeviceSynchronize();
     }
-
     return {grad_input};
 }

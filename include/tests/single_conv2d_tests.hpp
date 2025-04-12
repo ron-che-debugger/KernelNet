@@ -8,9 +8,7 @@
 using namespace std;
 
 inline void runSingleConv2DTests() {
-    // ============================================================
     // --------------------- Test on CPU --------------------------
-    // ============================================================
     {
         cout << "===== Running Single Conv2D Test on CPU =====" << endl;
         Device device = CPU;
@@ -77,9 +75,7 @@ inline void runSingleConv2DTests() {
         cout << endl;
     }
 
-    // ============================================================
     // --------------------- Test on CUDA -------------------------
-    // ============================================================
     {
         cout << "===== Running Single Conv2D Test on CUDA =====" << endl;
         Device device = CUDA;

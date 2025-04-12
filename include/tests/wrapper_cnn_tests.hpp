@@ -1,14 +1,14 @@
 #pragma once
 
 #include "autograd.hpp"
-#include "conv2d.hpp"     // Convolution layer (inherits from SingleInputModule)
-#include "dense.hpp"      // Dense layer (inherits from SingleInputModule)
-#include "maxpool.hpp"    // Max Pool layer (inherits from SingleInputModule)
-#include "optimizer.hpp"  // SGD optimizer
-#include "sequential.hpp" // Our new sequential container
-#include "softmax.hpp"    // Softmax layer (inherits from SingleInputModule)
+#include "conv2d.hpp"
+#include "dense.hpp"
+#include "maxpool.hpp"
+#include "optimizer.hpp"
+#include "sequential.hpp"
+#include "softmax.hpp"
 #include "tensor.hpp"
-#include "trainer.hpp" // Our trainer module
+#include "trainer.hpp"
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -47,12 +47,9 @@ inline void runWrapperCnnTests() {
         auto softmax = make_shared<Softmax>(batch_size, num_classes);
 
         // Build a Sequential container by listing the layers.
-        // Note that we store the model as a Sequential pointer so that we can call
-        // the convenience single-argument forward.
         shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             conv1, pool1, conv2, pool2, dense, softmax});
 
-        // Create SGD optimizer using the parameters collected from the Sequential container.
         vector<VarPtr> params = model->parameters();
         float learning_rate = 0.01f;
         SGD optimizer(params, learning_rate);
@@ -60,7 +57,6 @@ inline void runWrapperCnnTests() {
         // Create a Trainer.
         Trainer trainer(model, optimizer);
 
-        // In this simple test, we train on a single sample.
         vector<VarPtr> inputs = {input_var};
         vector<VarPtr> targets = {target_var};
 
@@ -70,7 +66,7 @@ inline void runWrapperCnnTests() {
             trainer.trainEpoch(inputs, targets);
 
             if (epoch % 100 == 0) {
-                VarPtr prediction = model->forward(input_var); // calls the convenience overload
+                VarPtr prediction = model->forward(input_var);
                 // Calculate loss for logging.
                 VarPtr loss = MSEFunction::apply(prediction, target);
                 loss->data.toCPU();

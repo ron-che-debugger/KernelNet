@@ -1,12 +1,35 @@
+/**
+ * @file single_input_module.hpp
+ * @brief Defines `SingleInputModule`, an abstract base for modules that take one input.
+ *
+ * This class simplifies implementation of layers that expect exactly one input
+ * and produce exactly one output.
+ */
+
 #pragma once
+
 #include "module.hpp"
 
+/**
+ * @brief Base class for modules that operate on a single input and produce a single output.
+ *
+ * Provides a unified interface for both vector-based and scalar-input forward calls.
+ * Subclasses must override `forward(const VarPtr&)`.
+ */
 class SingleInputModule : public Module {
   public:
-    // This is the interface for modules naturally handling one input.
+    /**
+     * @brief Abstract forward pass with a single input.
+     * @param input The input variable.
+     * @return The output variable.
+     */
     virtual VarPtr forward(const VarPtr &input) = 0;
 
-    // The default forward() takes a vector and checks that it is exactly one element.
+    /**
+     * @brief Wrapper for Module’s multi-input forward, enforcing exactly one input.
+     * @param inputs Vector of inputs (must contain exactly one element).
+     * @return A vector with a single output.
+     */
     vector<VarPtr> forward(const vector<VarPtr> &inputs) override {
         assert(inputs.size() == 1 && "Expected exactly one input");
         return {forward(inputs[0])};

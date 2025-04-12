@@ -2,6 +2,18 @@
 
 using namespace std;
 
+/**
+ * @brief Constructor for the MaxPool2D module.
+ *
+ * Initializes pooling parameters and input dimensions.
+ *
+ * @param kernel_size Size of the square pooling window.
+ * @param stride Stride used for pooling.
+ * @param batch_size Number of samples in the batch.
+ * @param channels Number of channels in the input.
+ * @param input_height Height of the input image.
+ * @param input_width Width of the input image.
+ */
 MaxPool2D::MaxPool2D(int kernel_size, int stride,
                      int batch_size, int channels,
                      int input_height, int input_width)
@@ -9,11 +21,36 @@ MaxPool2D::MaxPool2D(int kernel_size, int stride,
       batch_size(batch_size), channels(channels),
       input_height(input_height), input_width(input_width) {}
 
+/**
+ * @brief Forward pass for MaxPool2D.
+ *
+ * Applies max pooling on the input variable and returns the pooled output.
+ *
+ * @param input Input variable.
+ * @return Output variable after max pooling.
+ */
 VarPtr MaxPool2D::forward(const VarPtr &input) {
     return MaxPool2DFunction::apply(input, batch_size, channels, input_height, input_width, kernel_size, stride);
 }
 
-// CUDA kernel for the forward pass.
+/**
+ * @brief CUDA kernel for the forward pass of max pooling.
+ *
+ * For each output element, finds the maximum value over the corresponding
+ * pooling window and stores the index of the maximum element.
+ *
+ * @param in_data Pointer to the input tensor data.
+ * @param out_data Pointer to the output tensor data.
+ * @param d_max_indices Pointer to an array to store indices of max values.
+ * @param batch_size Number of samples in the batch.
+ * @param channels Number of channels in the input.
+ * @param input_height Height of the input image.
+ * @param input_width Width of the input image.
+ * @param kernel_size Size of the square pooling window.
+ * @param stride Stride used for pooling.
+ * @param output_height Calculated height of the output.
+ * @param output_width Calculated width of the output.
+ */
 __global__ void maxpool_forward_kernel(const float *in_data, float *out_data, int *d_max_indices,
                                        int batch_size, int channels, int input_height, int input_width,
                                        int kernel_size, int stride, int output_height, int output_width) {
@@ -52,7 +89,24 @@ __global__ void maxpool_forward_kernel(const float *in_data, float *out_data, in
     }
 }
 
-// Helper function that handles the forward pass.
+/**
+ * @brief Helper function for the forward pass of max pooling.
+ *
+ * Computes output dimensions, allocates the output tensor, and performs max pooling
+ * on CPU or CUDA. Also returns the indices of maximum values for use in the backward pass.
+ *
+ * @param input Input tensor.
+ * @param batch_size Number of samples in the batch.
+ * @param channels Number of channels in the input.
+ * @param input_height Height of the input image.
+ * @param input_width Width of the input image.
+ * @param kernel_size Size of the pooling kernel.
+ * @param stride Pooling stride.
+ * @param output_height (Output) Calculated output height.
+ * @param output_width (Output) Calculated output width.
+ * @param max_indices (Output) Vector to store indices of maximum elements.
+ * @return The output tensor after max pooling.
+ */
 Tensor maxpool_forward(const Tensor &input, int batch_size, int channels,
                        int input_height, int input_width,
                        int kernel_size, int stride,
@@ -126,7 +180,20 @@ Tensor maxpool_forward(const Tensor &input, int batch_size, int channels,
     return out_tensor;
 }
 
-// Updated apply function that simply calls the helper forward function.
+/**
+ * @brief Applies the MaxPool2DFunction forward pass.
+ *
+ * Sets up pooling parameters and calls the helper function to perform max pooling.
+ *
+ * @param input Input variable.
+ * @param batch_size Number of samples in the batch.
+ * @param channels Number of channels in the input.
+ * @param input_height Height of the input image.
+ * @param input_width Width of the input image.
+ * @param kernel_size Size of the pooling kernel.
+ * @param stride Pooling stride.
+ * @return Output variable after max pooling.
+ */
 VarPtr MaxPool2DFunction::apply(const VarPtr &input,
                                 int batch_size, int channels,
                                 int input_height, int input_width,
@@ -160,6 +227,17 @@ VarPtr MaxPool2DFunction::apply(const VarPtr &input,
     return out;
 }
 
+/**
+ * @brief CUDA kernel for the backward pass of max pooling.
+ *
+ * For each output element, uses the stored index of the maximum input element
+ * to propagate the gradient.
+ *
+ * @param grad_out Pointer to the gradient output tensor.
+ * @param grad_in Pointer to the gradient input tensor (to be updated).
+ * @param max_indices Pointer to the array of indices stored during forward.
+ * @param output_size Total number of output elements.
+ */
 __global__ void maxpool_backward_kernel(const float *grad_out, float *grad_in, const int *max_indices, int output_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < output_size) {
@@ -168,8 +246,15 @@ __global__ void maxpool_backward_kernel(const float *grad_out, float *grad_in, c
     }
 }
 
+/**
+ * @brief Computes the backward pass of the MaxPool2DFunction.
+ *
+ * Propagates gradients from the output back to the input using the stored max indices.
+ *
+ * @param grad_output Gradient tensor from the next layer.
+ * @return A vector containing a single tensor representing the gradient with respect to the input.
+ */
 vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
-    // If grad_output is on CPU, do the CPU implementation.
     if (grad_output.device() == CPU) {
         Tensor grad_input(batch_size * channels * input_height * input_width, CPU);
         grad_input.fill(0.0f);
@@ -184,9 +269,8 @@ vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
     } else {
         // CUDA branch.
         int output_size = batch_size * channels * output_height * output_width;
-        Tensor grad_input(output_size, CUDA); // Allocate on CUDA.
-        // But grad_input needs to have size = input size:
-        grad_input = Tensor(batch_size * channels * input_height * input_width, CUDA);
+        // Allocate grad_input with size = input size.
+        Tensor grad_input(batch_size * channels * input_height * input_width, CUDA);
         grad_input.fill(0.0f);
 
         // Allocate device memory for max_indices.
@@ -194,7 +278,7 @@ vector<Tensor> MaxPool2DFunction::backward(const Tensor &grad_output) {
         cudaMalloc(&d_max_indices, output_size * sizeof(int));
         cudaMemcpy(d_max_indices, max_indices.data(), output_size * sizeof(int), cudaMemcpyHostToDevice);
 
-        // Launch the kernel.
+        // Launch the kernel to compute gradients.
         dim3 blockSize(256);
         dim3 gridSize((output_size + blockSize.x - 1) / blockSize.x);
         maxpool_backward_kernel<<<gridSize, blockSize>>>(grad_output.data(), grad_input.data(), d_max_indices, output_size);

@@ -1,16 +1,29 @@
+/**
+ * @file cifar10_test.cpp
+ * @brief Trains and evaluates a simple CNN on the CIFAR-10 dataset using a custom autograd engine.
+ *
+ * This test pipeline includes:
+ * - Loading CIFAR-10 training and test data from binary files
+ * - Batching and shuffling samples via a DataLoader
+ * - Building a convolutional neural network with Conv2D, MaxPool, Dense, and Softmax layers
+ * - Using SGD optimizer and cross-entropy loss for training
+ * - Running multiple epochs and reporting average loss per epoch
+ * - Evaluating final model accuracy on the test set
+ */
+
 #pragma once
 
-#include "./benchmark/cifar10_data_loader.hpp" // New module for batching, shuffling, etc.
-#include "./benchmark/cifar10_dataset.hpp"     // New module to load CIFAR-10 from disk.
-#include "autograd.hpp"                        // Our autograd system.
-#include "conv2d.hpp"                          // Convolution layer (SingleInputModule).
-#include "dense.hpp"                           // Dense layer (SingleInputModule).
-#include "maxpool.hpp"                         // MaxPool layer (SingleInputModule).
-#include "optimizer.hpp"                       // SGD optimizer.
-#include "sequential.hpp"                      // Our Sequential container.
-#include "softmax.hpp"                         // Softmax layer (SingleInputModule).
-#include "tensor.hpp"                          // Our Tensor abstraction.
-#include "trainer.hpp"                         // Our Trainer module.
+#include "./benchmark/cifar10_data_loader.hpp"
+#include "./benchmark/cifar10_dataset.hpp"
+#include "autograd.hpp"
+#include "conv2d.hpp"
+#include "dense.hpp"
+#include "maxpool.hpp"
+#include "optimizer.hpp"
+#include "sequential.hpp"
+#include "softmax.hpp"
+#include "tensor.hpp"
+#include "trainer.hpp"
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -19,38 +32,38 @@
 using namespace std;
 using namespace std::chrono;
 
+/**
+ * @brief Entry point for running CIFAR-10 training and evaluation.
+ *
+ * Constructs a basic convolutional network and trains it using the custom autograd framework.
+ * After training, accuracy is evaluated on the held-out test set.
+ */
 void runCIFAR10Tests() {
-    // Set device (for this example, we run on CPU; later you can set dev = CUDA)
     Device dev = CPU;
+
     int batch_size = 64;
-    int num_epochs = 50;  // For demonstration purposes.
-    int num_classes = 10; // CIFAR-10 has 10 classes.
+    int num_epochs = 2;
+    int num_classes = 10;
     int image_height = 32, image_width = 32, in_channels = 3;
 
-    // --- Data Loading ---
-    // Assume we have implemented CIFAR10Dataset and DataLoader.
-    // CIFAR10Dataset loads images (as Tensor) and labels (as one-hot or indices) from disk.
-    CIFAR10Dataset trainDataset("data/cifar10/train", /*train=*/true);
-    CIFAR10Dataset testDataset("data/cifar10/test", /*train=*/false);
-    CIFAR10DataLoader trainLoader(trainDataset, batch_size, /*shuffle=*/true);
-    CIFAR10DataLoader testLoader(testDataset, batch_size, /*shuffle=*/false);
+    // --- Load CIFAR-10 Data ---
+    CIFAR10Dataset trainDataset("data/cifar10/train", true);
+    CIFAR10Dataset testDataset("data/cifar10/test", false);
+    CIFAR10DataLoader trainLoader(trainDataset, batch_size, true);
+    CIFAR10DataLoader testLoader(testDataset, batch_size, false);
 
-    // --- Build CNN Model ---
-    // Our simple CNN:
-    // conv1: from 3 channels to 16, kernel 3x3, stride=1, pad=1 (keeps spatial dims 32x32).
+    // --- Define Model Architecture ---
+    // conv1: input channels 3 → 16, output dims remain 32×32
     auto conv1 = make_shared<Conv2D>(in_channels, 16, 3, 3, image_height, image_width, 1, 1, dev);
-    // After pool1: dims become 16 x 16.
-    auto pool1 = make_shared<MaxPool2D>(2, 2, batch_size, 16, image_height, image_width);
-    // conv2: 16 -> 32 channels, dims stay 16x16.
+    auto pool1 = make_shared<MaxPool2D>(2, 2, batch_size, 16, image_height, image_width); // → 16×16
+
     auto conv2 = make_shared<Conv2D>(16, 32, 3, 3, image_height / 2, image_width / 2, 1, 1, dev);
-    // After pool2: dims become 8 x 8.
-    auto pool2 = make_shared<MaxPool2D>(2, 2, batch_size, 32, image_height / 2, image_width / 2);
-    // Dense: we flatten the output (32 * 8 * 8 = 2048) and map to 10 classes.
+    auto pool2 = make_shared<MaxPool2D>(2, 2, batch_size, 32, image_height / 2, image_width / 2); // → 8×8
+
     auto dense = make_shared<Dense>(32 * 8 * 8, num_classes, dev);
-    // Softmax layer for classification.
     auto softmax = make_shared<Softmax>(batch_size, num_classes);
 
-    // Build the Sequential model.
+    // Assemble model into a Sequential container
     shared_ptr<Sequential> model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
         conv1, pool1, conv2, pool2, dense, softmax});
 
@@ -59,12 +72,12 @@ void runCIFAR10Tests() {
     float learning_rate = 0.01f;
     SGD optimizer(params, learning_rate);
 
-    // --- Create Trainer ---
+    // --- Define Loss Function ---
     LossFunction loss_fn = [num_classes](const VarPtr &prediction, const Tensor &target) {
-        // 10 is the number of classes we want to use for averaging.
         return CrossEntropyLossFunction::apply(prediction, target, num_classes);
     };
 
+    // --- Create Trainer ---
     Trainer trainer(model, optimizer, loss_fn);
 
     // --- Training Loop ---
@@ -72,35 +85,38 @@ void runCIFAR10Tests() {
     for (int epoch = 0; epoch < num_epochs; epoch++) {
         float epoch_loss = 0.0f;
         int batches = 0;
+
         while (trainLoader.hasNext()) {
-            // Each batch returns a pair: {input_batch, target_batch}
             auto batch = trainLoader.nextBatch();
             if (dev == CUDA) {
                 batch.first.toCUDA();
                 batch.second.toCUDA();
             }
-            // batch.first: Tensor input, shape: [batch_size, channels, height, width]
-            // batch.second: Tensor target, format as required (e.g., class indices or one-hot)
+
             VarPtr input_var = make_shared<Variable>(batch.first, false, "input_batch");
             VarPtr target_var = make_shared<Variable>(batch.second, false, "target_batch");
+
             vector<VarPtr> inputs = {input_var};
             vector<VarPtr> targets = {target_var};
             trainer.trainEpoch(inputs, targets);
+
             VarPtr prediction = model->forward(input_var);
             VarPtr loss = loss_fn(prediction, batch.second);
             float batch_avg_loss = loss->data.sum() / batch_size;
+
             epoch_loss += batch_avg_loss;
             batches++;
-            // cout << "Finished computing a batch." << endl;
         }
-        trainLoader.reset(); // Reset loader for next epoch.
+
+        trainLoader.reset();
         cout << "Epoch " << epoch << " Average Loss: " << epoch_loss / batches << endl;
     }
+
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count();
     cout << "Custom architecture training completed in " << (duration / 1000.0) << " seconds" << endl;
 
-    // --- Evaluate on Test Set (Accuracy) ---
+    // --- Evaluate on Test Set ---
     int correct = 0, total = 0;
     while (testLoader.hasNext()) {
         auto batch = testLoader.nextBatch();
@@ -113,10 +129,15 @@ void runCIFAR10Tests() {
         VarPtr input_var = make_shared<Variable>(batch.first, false, "test_input");
         VarPtr prediction = model->forward(input_var);
 
-        // Use the new axis-aware argmax for both prediction and ground truth.
-        // The argmax function internally copies data to CPU if needed.
         vector<int> pred_labels = prediction->data.argmax(1, num_classes);
         vector<int> true_labels = batch.second.argmax(1, num_classes);
+
+        for (size_t i = 0; i < pred_labels.size(); ++i) {
+            if (pred_labels[i] == true_labels[i])
+                correct++;
+            total++;
+        }
     }
+
     cout << "KenelNet Test Accuracy: " << (100.0 * correct / total) << "%" << endl;
 }

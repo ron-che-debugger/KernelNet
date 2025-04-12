@@ -1,16 +1,15 @@
 #pragma once
 
 #include "autograd.hpp"
-#include "dense.hpp"        // Dense layer (inherits from SingleInputModule)
-#include "lstm_wrapper.hpp" // Our new LSTM wrapper module
-#include "optimizer.hpp"    // SGD optimizer
-#include "sequential.hpp"   // Our new sequential container
-#include "trainer.hpp"      // Our trainer module
+#include "dense.hpp"
+#include "lstm_wrapper.hpp"
+#include "optimizer.hpp"
+#include "sequential.hpp"
+#include "trainer.hpp"
 
 using namespace std;
 
 inline void runWrapperLSTMTests() {
-    // Common training settings.
     int batch_size = 4;
     int sequence_length = 5;
     int input_dim = 3;
@@ -29,6 +28,7 @@ inline void runWrapperLSTMTests() {
         // Build network layers: LSTMWrapper then Dense.
         auto lstmWrapper = make_shared<LSTM>(batch_size, sequence_length, input_dim, hidden_dim, dev);
         auto dense = make_shared<Dense>(hidden_dim, output_dim, dev);
+
         // Build a Sequential container.
         auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             lstmWrapper, dense});
