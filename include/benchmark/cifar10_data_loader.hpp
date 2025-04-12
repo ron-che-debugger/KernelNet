@@ -12,7 +12,6 @@
 #pragma once
 
 #include "./benchmark/cifar10_dataset.hpp"
-#include "tensor.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>

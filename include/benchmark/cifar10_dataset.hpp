@@ -23,6 +23,8 @@
 #include <vector>
 
 using namespace std;
+using namespace kernelnet::tensor;
+
 namespace kernelnet {
 namespace data {
 /**
