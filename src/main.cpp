@@ -1,24 +1,25 @@
 #include <iostream>
 using namespace std;
 
-#define TEST_TENSORS
-#define TEST_AUTOGRAD
-#define TEST_SINGLEDENSELAYER
-#define TEST_SINGLEMAXPOOLLAYER
-#define TEST_SOFTMAX
-#define TEST_SINGLECONV2DLAYER
-#define TEST_SINGLECONV2DDENSE
-#define TEST_SIMPLECNN
-#define TEST_WRAPPERCNN
-#define TEST_WRAPPERCNNCN
-#define TEST_SIGMOID
-#define TEST_TANH
-#define TEST_RELU
-#define TEST_SLICE
-#define TEST_SINGLELSTMCELL
-#define TEST_SEQUENTIALLSTM
-#define TEST_WRAPPERLSTM
-#define TEST_CIFAR10
+// #define TEST_TENSORS
+// #define TEST_AUTOGRAD
+// #define TEST_SINGLEDENSELAYER
+// #define TEST_SINGLEMAXPOOLLAYER
+// #define TEST_SOFTMAX
+// #define TEST_SINGLECONV2DLAYER
+// #define TEST_SINGLECONV2DDENSE
+// #define TEST_SIMPLECNN
+// #define TEST_WRAPPERCNN
+// #define TEST_WRAPPERCNNCN
+// #define TEST_SIGMOID
+// #define TEST_TANH
+// #define TEST_RELU
+// #define TEST_SLICE
+#define TEST_SINGLEEMBEDDING
+// #define TEST_SINGLELSTMCELL
+// #define TEST_SEQUENTIALLSTM
+// #define TEST_WRAPPERLSTM
+// #define TEST_CIFAR10
 
 #ifdef TEST_TENSORS
 #include "tests/tensor_tests.hpp"
@@ -74,6 +75,10 @@ using namespace std;
 
 #ifdef TEST_SLICE
 #include "./tests/slice_tests.hpp"
+#endif
+
+#ifdef TEST_SINGLEEMBEDDING
+#include "./tests/single_embedding_layer_tests.hpp"
 #endif
 
 #ifdef TEST_SINGLELSTMCELL
@@ -161,6 +166,11 @@ int main() {
 #ifdef TEST_SLICE
     cout << "\n===== Running Slice Tests =====" << endl;
     runSliceTests();
+#endif
+
+#ifdef TEST_SINGLEEMBEDDING
+    cout << "\n===== Running Single Embedding Layer Tests =====" << endl;
+    runSingleEmbeddingTests();
 #endif
 
 #ifdef TEST_SINGLELSTMCELL

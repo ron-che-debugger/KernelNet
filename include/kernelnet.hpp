@@ -15,6 +15,7 @@
 #include "autograd.hpp"
 #include "conv2d.hpp"
 #include "dense.hpp"
+#include "embedding.hpp"
 #include "lstm.hpp"
 #include "lstm_wrapper.hpp"
 #include "maxpool.hpp"
@@ -31,6 +32,7 @@
 
 #include "benchmark/cifar10_data_loader.hpp"
 #include "benchmark/cifar10_dataset.hpp"
+#include "benchmark/ptb_dataset.hpp"
 
 using namespace std;
 using namespace kernelnet;

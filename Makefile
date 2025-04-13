@@ -48,12 +48,12 @@ SRCDIR = src
 OBJDIR = obj
 
 # Target executable
-TARGET = tensor_example.exe
+TARGET = kernelnet.exe
 
 # Source files (adjust filenames as necessary)
 SOURCES = $(SRCDIR)/tensor.cu $(SRCDIR)/dense.cu $(SRCDIR)/conv2d.cu $(SRCDIR)/optimizer.cu $(SRCDIR)/autograd.cu\
         $(SRCDIR)/maxpool.cu $(SRCDIR)/softmax.cu $(SRCDIR)/sigmoid.cu $(SRCDIR)/tanh.c $(SRCDIR)/lstm.cu\
-        $(SRCDIR)/relu.cu $(SRCDIR)/main.cpp
+        $(SRCDIR)/relu.cu $(SRCDIR)/embedding.cu $(SRCDIR)/main.cpp
 
 # Object files
 CU_SOURCES = $(wildcard $(SRCDIR)/*.cu)
