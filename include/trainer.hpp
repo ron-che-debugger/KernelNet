@@ -78,20 +78,30 @@ class Trainer {
         for (size_t i = 0; i < inputs.size(); ++i) {
             // Forward pass.
             VarPtr prediction = model->forward(inputs[i]);
-            cout << "pass a" << endl;
+
             // Compute loss.
             VarPtr loss = loss_fn(prediction, targets[i]->data);
-            cout << "pass b" << endl;
-
-            cout << "[CHECK] loss->requires_grad = " << loss->requires_grad << endl;
-            cout << "[CHECK] loss->creator is " << (loss->creator ? "non-null" : "null") << endl;
+            // cout << "Loss: " << loss->data.data()[0] << endl;
 
             // Backward pass to compute gradients.
-            loss->backward(Tensor(1, loss->data.device()));
-            cout << "pass c" << endl;
+            Tensor grad_seed(1, loss->data.device());
+            grad_seed.fill(1.0f);
+
+            /**
+            if (grad_seed.device() == CUDA) {
+                vector<float> host_grad(1);
+                cudaMemcpy(host_grad.data(), grad_seed.data(), sizeof(float), cudaMemcpyDeviceToHost);
+                cout << "grad_seed[0] (CUDA) = " << host_grad[0] << endl;
+            } else {
+                cout << "grad_seed[0] (CPU) = " << grad_seed.data()[0] << endl;
+            }
+            */
+
+            loss->backward(grad_seed);
+
             // Parameter update step.
             optimizer.step();
-            cout << "pass d" << endl;
+
             // Clear gradients before the next sample.
             optimizer.zero_grad();
         }

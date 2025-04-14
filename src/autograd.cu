@@ -74,27 +74,46 @@ void Variable::set_creator(const FuncPtr &func) {
  */
 void Variable::backward(const Tensor &grad_output) {
     if (requires_grad) {
+        /**
+        // Print out the first few elements of grad_output (up to 10 elements)
+        cout << "[DEBUG] grad_output for " << debug_name << ": ";
+
+        size_t numToPrint = std::min(grad_output.size(), (size_t)10);
+        if (grad_output.device() == CPU) {
+            const float *ptr = grad_output.data();
+            for (size_t i = 0; i < numToPrint; ++i) {
+                cout << ptr[i] << " ";
+            }
+        } else {
+            // For CUDA, copy data to CPU first.
+            vector<float> host_buffer(numToPrint);
+            cudaMemcpy(host_buffer.data(), grad_output.data(), numToPrint * sizeof(float), cudaMemcpyDeviceToHost);
+            for (size_t i = 0; i < numToPrint; ++i) {
+                cout << host_buffer[i] << " ";
+            }
+        }
+        cout << endl;
         cout << "[DEBUG] In backward for " << debug_name
              << " pending_count=" << pending_count
              << " creator=" << (creator ? "yes" : "no") << endl;
+        */
         if (!grad_initialized) {
             grad = grad_output;
             grad_initialized = true;
-            cout << "[DEBUG] Initial gradient set for " << debug_name << endl;
+            // cout << "[DEBUG] Initial gradient set for " << debug_name << endl;
         } else {
             grad = Tensor::add(grad, grad_output);
-            cout << "[DEBUG] Updated gradient for " << debug_name << endl;
+            // cout << "[DEBUG] Updated gradient for " << debug_name << endl;
         }
         if (pending_count > 0)
             pending_count--;
         if (creator && pending_count == 0) {
-            cout << "[DEBUG] Backward called on function output: " << debug_name << endl;
-            cout << "[DEBUG] Function has " << creator->inputs.size() << " inputs" << endl;
+            // cout << "[DEBUG] Backward called on function output: " << debug_name << endl;
+            // cout << "[DEBUG] Function has " << creator->inputs.size() << " inputs" << endl;
             vector<Tensor> input_grads = creator->backward(grad);
             for (size_t i = 0; i < creator->inputs.size(); ++i) {
                 if (auto inp = creator->inputs[i].lock()) {
                     if (inp->requires_grad) {
-                        cout << "[DEBUG] Propagating backward to " << inp->debug_name << endl;
                         inp->backward(input_grads[i]);
                     }
                 }
@@ -360,8 +379,6 @@ vector<Tensor> MatMulFunction::backward(const Tensor &grad_output) {
  */
 VarPtr SumFunction::apply(const VarPtr &input) {
     auto func = make_shared<SumFunction>();
-    if (input->requires_grad)
-        input->pending_count++;
     func->saved_input = input;
     func->inputs.push_back(input);
     float total = input->data.sum();
@@ -632,11 +649,9 @@ __global__ void slice_backward_kernel(const float *grad_out, float *grad_in, int
  */
 VarPtr SliceFunction::apply(const VarPtr &input, int batch_size, int start, int end) {
     auto func = make_shared<SliceFunction>();
-    if (input->requires_grad) {
-        input->pending_count++;
-    }
+
     func->saved_input = input;
-    func->inputs.push_back(input);  
+    func->inputs.push_back(input);
     func->batch_size = batch_size;
     func->start = start;
     func->end = end;
@@ -701,8 +716,16 @@ vector<Tensor> SliceFunction::backward(const Tensor &grad_output) {
     return {grad_input};
 }
 
+/**
+ * @brief Concatenates a list of input tensors into a single output tensor.
+ *
+ * @param inputs Vector of input variables to concatenate.
+ * @return Output variable containing the concatenated tensor.
+ */
 VarPtr ConcatFunction::apply(const vector<VarPtr> &inputs) {
+    // Create a new instance of the ConcatFunction.
     auto func = make_shared<ConcatFunction>();
+    // Save the inputs for use during the backward pass.
     func->saved_input = inputs;
     size_t total_size = 0;
 
@@ -710,20 +733,21 @@ VarPtr ConcatFunction::apply(const vector<VarPtr> &inputs) {
         func->inputs.push_back(inp);
     }
 
-    // Increment pending_count for each input (if gradients are required)
-    // and record each input's size.
+    // Iterate over each input:
+    // - Record the size of the input tensor.
+    // - If the input requires gradient, increment its pending count.
     for (auto &inp : inputs) {
         size_t sz = inp->data.size();
         func->sizes.push_back(sz);
-        if (inp->requires_grad)
-            inp->pending_count++;
         total_size += sz;
     }
 
-    // Create the output tensor with the total size.
+    // Create the output tensor using the total size.
     Tensor out_data(total_size, inputs[0]->data.device());
     float *out_ptr = out_data.data();
 
+    // Copy the data from each input into the output tensor.
+    // Use memcpy for CPU and cudaMemcpy for GPU.
     if (inputs[0]->data.device() == CPU) {
         for (auto &inp : inputs) {
             const float *in_ptr = inp->data.data();
@@ -738,20 +762,30 @@ VarPtr ConcatFunction::apply(const vector<VarPtr> &inputs) {
         }
     }
 
+    // Determine if any input requires gradient.
     bool req_grad = false;
     for (auto &inp : inputs)
         req_grad = req_grad || inp->requires_grad;
 
+    // Create the output variable and set the current function as its creator.
     auto out = make_shared<Variable>(out_data, req_grad, "Concat_out");
     out->set_creator(func);
     func->output = out;
     return out;
 }
 
+/**
+ * @brief Computes the backward pass for the concatenation function.
+ *
+ * @param grad_output Gradient tensor from the next layer corresponding to the concatenated output.
+ * @return Vector of gradient tensors for each input variable.
+ */
 vector<Tensor> ConcatFunction::backward(const Tensor &grad_output) {
     vector<Tensor> grads;
+    // Pointer to traverse the gradient output tensor.
     if (grad_output.device() == CPU) {
         const float *grad_ptr = grad_output.data();
+        // For each recorded input size, create a tensor for the gradient and copy the corresponding data.
         for (auto sz : sizes) {
             Tensor grad_in(sz, grad_output.device());
             memcpy(grad_in.data(), grad_ptr, sz * sizeof(float));

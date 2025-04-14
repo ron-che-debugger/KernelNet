@@ -1,27 +1,26 @@
 #include <iostream>
 using namespace std;
 
-// #define TEST_TENSORS
-// #define TEST_AUTOGRAD
-// #define TEST_SINGLEDENSELAYER
-// #define TEST_SINGLEMAXPOOLLAYER
-// #define TEST_SOFTMAX
-// #define TEST_SINGLECONV2DLAYER
-// #define TEST_SINGLECONV2DDENSE
-// #define TEST_SIMPLECNN
-// #define TEST_WRAPPERCNN
-// #define TEST_WRAPPERCNNCN
-// #define TEST_SIGMOID
-// #define TEST_TANH
-// #define TEST_RELU
-// #define TEST_SLICE
-// #define TEST_SINGLEEMBEDDING
-// #define TEST_SINGLELSTMCELL
-// #define TEST_SEQUENTIALLSTM
-// #define TEST_WRAPPERLSTM
-// #define TEST_CIFAR10
+#define TEST_TENSORS
+#define TEST_AUTOGRAD
+#define TEST_SINGLEDENSELAYER
+#define TEST_SINGLEMAXPOOLLAYER
+#define TEST_SOFTMAX
+#define TEST_SINGLECONV2DLAYER
+#define TEST_SINGLECONV2DDENSE
+#define TEST_SIMPLECNN
+#define TEST_WRAPPERCNN
+#define TEST_WRAPPERCNNCN
+#define TEST_SIGMOID
+#define TEST_TANH
+#define TEST_RELU
+#define TEST_SLICE
+#define TEST_SINGLEEMBEDDING
+#define TEST_SINGLELSTMCELL
+#define TEST_SEQUENTIALLSTM
 #define TEST_EMBEDLSTM
-// #define TEST_PTB
+#define TEST_CIFAR10
+#define TEST_PTB
 
 #ifdef TEST_TENSORS
 #include "tests/tensor_tests.hpp"
@@ -191,11 +190,6 @@ int main() {
 #ifdef TEST_SEQUENTIALLSTM
     cout << "\n===== Running Sequential LSTM Tests =====" << endl;
     runSeqLSTMTests();
-#endif
-
-#ifdef TEST_WRAPPERLSTM
-    cout << "\n===== Running Wrapper LSTM Tests =====" << endl;
-    runWrapperLSTMTests();
 #endif
 
 #ifdef TEST_CIFAR10

@@ -546,12 +546,6 @@ VarPtr Conv2DFunction::apply(const VarPtr &input, const VarPtr &weight, const Va
     func->out_height = (input_height - kernel_h + 2 * padding) / stride + 1;
     func->out_width = (input_width - kernel_w + 2 * padding) / stride + 1;
 
-    if (input->requires_grad)
-        input->pending_count++;
-    if (weight->requires_grad)
-        weight->pending_count++;
-    if (bias->requires_grad)
-        bias->pending_count++;
     func->saved_input = input;
     func->saved_weight = weight;
     func->saved_bias = bias;

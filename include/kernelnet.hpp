@@ -12,6 +12,12 @@
  * By including this header, users have access to the complete public API of KernelNet.
  */
 
+ #ifdef KERNELNET_EXPORTS
+  #define KERNELNET_API __declspec(dllexport)
+#else
+  #define KERNELNET_API __declspec(dllimport)
+#endif
+
 #include "autograd.hpp"
 #include "conv2d.hpp"
 #include "dense.hpp"

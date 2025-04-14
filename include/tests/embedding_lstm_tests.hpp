@@ -3,10 +3,10 @@
 #include "kernelnet.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <iostream>
 #include <memory>
 #include <vector>
-#include <initializer_list>
 
 using namespace std;
 
@@ -20,14 +20,14 @@ inline void runEmbeddingLSTMTests() {
         Device dev = CPU;
         const int batch_size = 8;
         const int sequence_length = 10;
-        const int vocab_size = 50;   // small vocabulary for synthetic test
+        const int vocab_size = 50; // small vocabulary for synthetic test
         const int embed_dim = 16;
         const int hidden_dim = 32;
 
         // Create synthetic input data on CPU.
         size_t num_tokens = batch_size * sequence_length;
         Tensor input_indices(num_tokens, dev);
-        float* input_data = input_indices.data();
+        float *input_data = input_indices.data();
         for (size_t i = 0; i < num_tokens; i++) {
             // random index between 0 and (vocab_size-1)
             input_data[i] = static_cast<float>(rand() % vocab_size);
@@ -38,8 +38,7 @@ inline void runEmbeddingLSTMTests() {
         auto lstm = make_shared<LSTM>(batch_size, sequence_length, embed_dim, hidden_dim, dev);
         auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             embedding,
-            lstm
-        });
+            lstm});
 
         // Setup optimizer.
         vector<VarPtr> params = model->parameters();
@@ -83,27 +82,26 @@ inline void runEmbeddingLSTMTests() {
         Device dev = CUDA;
         const int batch_size = 8;
         const int sequence_length = 10;
-        const int vocab_size = 50;   // small vocabulary for synthetic test
+        const int vocab_size = 50; // small vocabulary for synthetic test
         const int embed_dim = 16;
         const int hidden_dim = 32;
 
         // Create synthetic input data on CPU, then convert to CUDA.
         size_t num_tokens = batch_size * sequence_length;
         Tensor input_indices(num_tokens, CPU);
-        float* input_data = input_indices.data();
+        float *input_data = input_indices.data();
         for (size_t i = 0; i < num_tokens; i++) {
             // random index between 0 and (vocab_size-1)
             input_data[i] = static_cast<float>(rand() % vocab_size);
         }
-        input_indices.toCUDA();  // careful with the conversion: transfer tensor to CUDA memory
+        input_indices.toCUDA(); // careful with the conversion: transfer tensor to CUDA memory
 
         // Build the model on CUDA.
         auto embedding = make_shared<Embedding>(vocab_size, embed_dim, dev);
         auto lstm = make_shared<LSTM>(batch_size, sequence_length, embed_dim, hidden_dim, dev);
         auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
             embedding,
-            lstm
-        });
+            lstm});
 
         // Setup optimizer.
         vector<VarPtr> params = model->parameters();

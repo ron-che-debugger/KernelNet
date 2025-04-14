@@ -110,27 +110,35 @@ SGD::SGD(const vector<VarPtr> &params, float lr, float clip_value)
 void SGD::step() {
     for (auto param : params) {
         if (!param->grad_initialized) {
-            
-            // Print out a warning (or error) along with the parameter's debug name if available.
             cout << "[ERROR] Gradient not initialized for parameter: "
                  << (param->debug_name.empty() ? "unknown" : param->debug_name)
                  << endl;
-            
         }
         size_t n = param->data.size();
 
-        
-        std::cout << "[DEBUG] Before update, first 5 weights for param " << param->debug_name << ": ";
-        const float *param_data = param->data.data();
-        for (size_t i = 0; i < std::min(n, size_t(5)); i++) {
-            std::cout << param_data[i] << " ";
+        /**
+        // Logging: Print first 5 values before update, handling both CPU and CUDA.
+        cout << "[DEBUG] Before update, first 5 weights for param " << param->debug_name << ": ";
+
+        size_t numToPrint = min(n, size_t(5));
+        if (param->data.device() == CPU) {
+            const float *data_ptr = param->data.data();
+            for (size_t i = 0; i < numToPrint; i++) {
+                cout << data_ptr[i] << " ";
+            }
+        } else { // CUDA: copy small chunk from device to host.
+            vector<float> host_buffer(numToPrint);
+            cudaMemcpy(host_buffer.data(), param->data.data(), numToPrint * sizeof(float), cudaMemcpyDeviceToHost);
+            for (size_t i = 0; i < numToPrint; i++) {
+                cout << host_buffer[i] << " ";
+            }
         }
-        std::cout << std::endl;
-        
-        // Apply norm-based gradient clipping if clip_value > 0.
+        cout << endl;
+        */
+
+        // Gradient clipping.
         if (clip_value > 0.0f) {
             if (param->grad.device() == CPU) {
-                // Compute L2 norm on CPU.
                 float norm = 0.0f;
                 for (size_t i = 0; i < n; i++) {
                     float g = param->grad.data()[i];
@@ -144,17 +152,12 @@ void SGD::step() {
                     }
                 }
             } else {
-                // GPU branch: compute norm using reduction kernel.
                 dim3 blockSize(256);
                 dim3 gridSize((n + blockSize.x - 1) / blockSize.x);
-                // Allocate temporary device memory for partial sums.
                 float *d_partial;
                 cudaMalloc(&d_partial, gridSize.x * sizeof(float));
-                // Launch kernel with shared memory allocation.
                 compute_grad_norm_kernel<<<gridSize, blockSize, blockSize.x * sizeof(float)>>>(param->grad.data(), d_partial, n);
                 cudaDeviceSynchronize();
-
-                // Copy partial sums to host to compute total norm.
                 vector<float> h_partial(gridSize.x);
                 cudaMemcpy(h_partial.data(), d_partial, gridSize.x * sizeof(float), cudaMemcpyDeviceToHost);
                 cudaFree(d_partial);
@@ -172,7 +175,7 @@ void SGD::step() {
             }
         }
 
-        // Update parameters using SGD.
+        // Parameter update using SGD.
         if (param->data.device() == CUDA) {
             dim3 blockSize(256);
             dim3 gridSize((n + blockSize.x - 1) / blockSize.x);
@@ -183,17 +186,28 @@ void SGD::step() {
                 param->data.data()[i] -= lr * param->grad.data()[i];
             }
         }
-        
-        float grad_sum = param->grad.sum(); // Or a similar method to sum over all grad elements.
-        std::cout << "Gradient sum for " << param->debug_name << ": " << grad_sum << std::endl;
 
-        // After update, print a few parameter values again:
-        std::cout << "[DEBUG] After update, first 5 weights for param " << param->debug_name << ": ";
-        for (size_t i = 0; i < std::min(n, size_t(5)); i++) {
-            std::cout << param->data.data()[i] << " ";
+        /**
+        // Print the gradient sum (Tensor::sum() handles device conversion internally).
+        float grad_sum = param->grad.sum();
+        cout << "Gradient sum for " << param->debug_name << ": " << grad_sum << endl;
+
+        // Logging: Print first 5 weights after update.
+        cout << "[DEBUG] After update, first 5 weights for param " << param->debug_name << ": ";
+        if (param->data.device() == CPU) {
+            const float *data_ptr = param->data.data();
+            for (size_t i = 0; i < numToPrint; i++) {
+                cout << data_ptr[i] << " ";
+            }
+        } else {
+            vector<float> host_buffer(numToPrint);
+            cudaMemcpy(host_buffer.data(), param->data.data(), numToPrint * sizeof(float), cudaMemcpyDeviceToHost);
+            for (size_t i = 0; i < numToPrint; i++) {
+                cout << host_buffer[i] << " ";
+            }
         }
-        std::cout << std::endl;
-        
+        cout << endl;
+        */
     }
 }
 

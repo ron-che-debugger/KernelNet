@@ -100,12 +100,6 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
     func->embed_dim = embed_dim;
     func->saved_weight = weight;
 
-    if (weight->requires_grad) {
-        weight->pending_count++;
-        cout << "[DEBUG] EmbeddingLookupFunction::apply: incremented pending_count for " << weight->debug_name
-             << ", new pending_count = " << weight->pending_count << endl;
-    }
-
     // Only the weight is differentiable, so push only the weight into inputs.
     func->inputs.push_back(weight);
     size_t n = indices->data.size();
@@ -158,7 +152,6 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
     bool req_grad = weight->requires_grad; // Indices are non-differentiable.
     auto out_var = make_shared<Variable>(out, req_grad, "Embedding_out");
     out_var->set_creator(func);
-    cout << "[DEBUG] Set creator for Embedding_out: " << (out_var->creator != nullptr) << endl;
     func->output = out_var;
     return out_var;
 }
@@ -175,8 +168,6 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
  * @return A vector containing a single tensor: the gradient for the embedding weight.
  */
 vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
-    cout << "[DEBUG] EmbeddingLookupFunction::backward called, number of saved indices: "
-         << indices.size() << endl;
     size_t n = indices.size();
     // Initialize grad_weight with zeros on the same device as grad_output.
     Tensor grad_weight(saved_weight->data.size(), grad_output.device());
@@ -209,7 +200,7 @@ vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
         // Transfer the accumulated gradient back to CUDA.
         grad_weight.toCUDA();
     }
-    
+
     return {grad_weight};
 }
 

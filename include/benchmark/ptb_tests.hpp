@@ -10,27 +10,57 @@
 using namespace std;
 using namespace std::chrono;
 
+/*
+// Helper function to print basic statistics of a Tensor.
+void printTensorStats(const string &name, const Tensor &t) {
+    float sum = 0.0f;
+    float min_val = numeric_limits<float>::max();
+    float max_val = numeric_limits<float>::lowest();
+    const float *data = t.data();
+    for (size_t i = 0; i < t.size(); i++) {
+        float val = data[i];
+        sum += val;
+        min_val = min(min_val, val);
+        max_val = max(max_val, val);
+    }
+    float mean = sum / static_cast<float>(t.size());
+    cout << name << " => mean: " << mean
+              << ", min: " << min_val
+              << ", max: " << max_val << endl;
+}
+*/
+
 /**
  * Helper function: converts a tensor of token indices to a one-hot encoded tensor.
  */
 inline Tensor onehot(const Tensor &indices, int num_classes) {
     size_t n = indices.size();
-    Tensor onehot_tensor(n * num_classes, indices.device());
-    const float *indices_data = indices.data();
+    // Allocate onehot tensor on CPU
+    Tensor onehot_tensor(n * num_classes, CPU);
+    vector<float> indices_host(n);
+    if (indices.device() == CUDA) {
+        cudaMemcpy(indices_host.data(), indices.data(), n * sizeof(float), cudaMemcpyDeviceToHost);
+    } else {
+        memcpy(indices_host.data(), indices.data(), n * sizeof(float));
+    }
     float *onehot_data = onehot_tensor.data();
     for (size_t i = 0; i < n; i++) {
-        int idx = static_cast<int>(indices_data[i]);
+        int idx = static_cast<int>(indices_host[i]);
         for (int j = 0; j < num_classes; j++) {
             onehot_data[i * num_classes + j] = (j == idx) ? 1.0f : 0.0f;
         }
+    }
+    // If the rest of your computation expects the tensor on CUDA, move it.
+    if (indices.device() == CUDA) {
+        onehot_tensor.toCUDA();
     }
     return onehot_tensor;
 }
 
 int runPTBTests() {
     // --- Hyperparameters and Device Setup ---
-    Device dev = CPU; // Change to CUDA if desired.
-    int batch_size = 64;
+    Device dev = CPU;
+    int batch_size = 8;
     int num_epochs = 20;
     int sequence_length = 35;
     int embed_dim = 128;
@@ -51,7 +81,7 @@ int runPTBTests() {
     auto lstm = make_shared<LSTM>(batch_size, sequence_length, embed_dim, hidden_dim, dev);
     auto dense = make_shared<Dense>(hidden_dim, vocab_size, dev);
     auto softmax = make_shared<Softmax>(batch_size * sequence_length, vocab_size);
-    cout << "pass 0" << endl;
+
     // Assemble the model using the Sequential container.
     auto model = make_shared<Sequential>(initializer_list<shared_ptr<SingleInputModule>>{
         embedding,
@@ -59,51 +89,57 @@ int runPTBTests() {
         dense,
         softmax});
 
+    /*
+    printTensorStats("Embedding weight", embedding->parameters()[0]->data);
+    printTensorStats("LSTM weight_ih", lstm->parameters()[0]->data);
+    printTensorStats("LSTM weight_hh", lstm->parameters()[1]->data);
+    printTensorStats("Dense weight", dense->parameters()[0]->data);
+    */
+
     // --- Setup Optimizer ---
     vector<VarPtr> params = model->parameters();
     float learning_rate = 0.01f;
     SGD optimizer(params, learning_rate);
-    cout << "pass 1" << endl;
+
     // --- Define Loss Function Lambda ---
     // Our loss function takes a prediction (VarPtr) and a target tensor and returns a VarPtr.
     LossFunction loss_fn = [vocab_size](const VarPtr &prediction, const Tensor &target) {
         Tensor onehot_target = onehot(target, vocab_size);
         return CrossEntropyLossFunction::apply(prediction, onehot_target, vocab_size);
     };
-    cout << "pass 2" << endl;
+
     // --- Create Trainer ---
     // Trainer accepts model, optimizer, and the loss function.
     Trainer trainer(model, optimizer, loss_fn);
-    cout << "pass 3" << endl;
+
     // --- Training Loop ---
     auto start = high_resolution_clock::now();
     for (int epoch = 0; epoch < num_epochs; epoch++) {
         float epoch_loss = 0.0f;
         int batches = 0;
         while (trainLoader.hasNext()) {
-            cout << "pass 4" << endl;
             auto batch = trainLoader.nextBatch();
-            cout << "pass 5" << endl;
+
             if (dev == CUDA) {
                 batch.first.toCUDA();
                 batch.second.toCUDA();
             }
-            cout << "pass 6" << endl;
+
             // Wrap input into a Variable (target is passed as Tensor).
-            VarPtr input_var = make_shared<Variable>(batch.first, false, "input_batch");
+            VarPtr input_var = make_shared<Variable>(batch.first, true, "input_batch");
             VarPtr target_var = make_shared<Variable>(batch.second, false, "target_batch");
-            cout << "pass 6.5" << endl;
+
             // Trainer.trainEpoch() takes a vector of input Variables and a vector of target Tensors.
             vector<VarPtr> inputs = {input_var};
             vector<VarPtr> targets = {target_var};
 
             trainer.trainEpoch(inputs, targets);
-            cout << "pass 7" << endl;
+
             // For logging, compute loss separately:
             VarPtr prediction = model->forward(input_var);
-            cout << "pass 8" << endl;
+
             VarPtr loss = loss_fn(prediction, batch.second);
-            cout << "pass 9" << endl;
+
             float batch_loss = loss->data.sum();
             epoch_loss += batch_loss;
             batches++;

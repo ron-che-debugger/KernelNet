@@ -36,9 +36,9 @@ namespace nn {
 class EmbeddingLookupFunction : public Function {
   public:
     vector<int> indices; ///< Saved token indices derived from the input.
-    int embed_dim;             ///< Dimensionality of the embeddings.
-    VarPtr saved_weight;       ///< Embedding weight variable.
-    
+    int embed_dim;       ///< Dimensionality of the embeddings.
+    VarPtr saved_weight; ///< Embedding weight variable.
+
     /**
      * @brief Applies the embedding lookup.
      *

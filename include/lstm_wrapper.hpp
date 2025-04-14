@@ -104,6 +104,17 @@ class LSTM : public SingleInputModule {
         VarPtr output = ConcatFunction::apply(hidden_states);
         return output;
     }
+
+    /**
+     * @brief Returns the trainable parameters of the LSTM module.
+     *
+     * The parameters are exactly the ones stored in the internal LSTMCell.
+     *
+     * @return A vector containing {weight_ih, weight_hh, bias_ih, bias_hh}.
+     */
+    vector<VarPtr> parameters() override {
+        return cell.parameters();
+    }
 };
 } // namespace nn
 } // namespace kernelnet
