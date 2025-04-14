@@ -61,10 +61,11 @@ class LSTM : public SingleInputModule {
     /**
      * @brief Forward pass through the entire sequence using the internal LSTMCell.
      *
-     * @param input A flattened tensor representing the full sequence input.
-     *              Shape: (batch_size * sequence_length * input_dim)
+     * Accepts a flattened input tensor of shape:
+     *     [batch_size * sequence_length * input_dim]
      *
-     * @return The final hidden state as a Variable.
+     * @return A Variable with concatenated hidden states of shape
+     *         [batch_size * sequence_length, hidden_dim].
      */
     VarPtr forward(const VarPtr &input) override {
         // Initialize hidden and cell states to zeros.
@@ -75,22 +76,33 @@ class LSTM : public SingleInputModule {
         VarPtr h_prev = make_shared<Variable>(h0, true, "h0");
         VarPtr c_prev = make_shared<Variable>(c0, true, "c0");
 
-        VarPtr current_hidden;
+        // Container for hidden states.
+        vector<VarPtr> hidden_states;
 
-        // Unroll LSTM through each time step
+        // Unroll the LSTM over each time step.
         for (int t = 0; t < sequence_length; t++) {
+            // Compute offset for current time step (each time step has input_dim elements per batch row).
             int offset = t * input_dim;
+
+            // Slice out x_t with shape [batch_size, input_dim].
             VarPtr x_t = SliceFunction::apply(input, batch_size, offset, offset + input_dim);
 
+            // Apply the LSTM cell.
             vector<VarPtr> lstm_inputs = {x_t, h_prev, c_prev};
             vector<VarPtr> lstm_outputs = cell.forward(lstm_inputs);
 
+            // Update hidden and cell states.
             h_prev = lstm_outputs[0];
             c_prev = lstm_outputs[1];
-            current_hidden = h_prev;
+
+            // Save the hidden state for this time step.
+            hidden_states.push_back(h_prev);
         }
 
-        return current_hidden;
+        // Concatenate hidden states along axis 0 to produce a tensor
+        // of shape [batch_size * sequence_length, hidden_dim].
+        VarPtr output = ConcatFunction::apply(hidden_states);
+        return output;
     }
 };
 } // namespace nn

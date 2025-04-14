@@ -15,11 +15,13 @@ using namespace std;
 // #define TEST_TANH
 // #define TEST_RELU
 // #define TEST_SLICE
-#define TEST_SINGLEEMBEDDING
+// #define TEST_SINGLEEMBEDDING
 // #define TEST_SINGLELSTMCELL
 // #define TEST_SEQUENTIALLSTM
 // #define TEST_WRAPPERLSTM
 // #define TEST_CIFAR10
+#define TEST_EMBEDLSTM
+// #define TEST_PTB
 
 #ifdef TEST_TENSORS
 #include "tests/tensor_tests.hpp"
@@ -95,6 +97,14 @@ using namespace std;
 
 #ifdef TEST_CIFAR10
 #include "./benchmark/cifar10_tests.hpp"
+#endif
+
+#ifdef TEST_EMBEDLSTM
+#include "./tests/embedding_lstm_tests.hpp"
+#endif
+
+#ifdef TEST_PTB
+#include "./benchmark/ptb_tests.hpp"
 #endif
 
 int main() {
@@ -191,6 +201,16 @@ int main() {
 #ifdef TEST_CIFAR10
     cout << "\n===== Running CIFAR10 Tests =====" << endl;
     runCIFAR10Tests();
+#endif
+
+#ifdef TEST_EMBEDLSTM
+    cout << "\n===== Running Embedding + LSTM Tests =====" << endl;
+    runEmbeddingLSTMTests();
+#endif
+
+#ifdef TEST_PTB
+    cout << "\n===== Running PTB Tests =====" << endl;
+    runPTBTests();
 #endif
     return 0;
 }

@@ -109,8 +109,13 @@ SGD::SGD(const vector<VarPtr> &params, float lr, float clip_value)
  */
 void SGD::step() {
     for (auto param : params) {
+        cout << "[DEBUG] SGD step: " << (param->debug_name.empty() ? "unknown" : param->debug_name)
+             << " grad_initialized: " << param->grad_initialized << endl;
         if (!param->grad_initialized) {
-            cout << "[ERROR] Gradient not initialized for parameter!" << endl;
+            // Print out a warning (or error) along with the parameter's debug name if available.
+            cout << "[ERROR] Gradient not initialized for parameter: "
+                 << (param->debug_name.empty() ? "unknown" : param->debug_name)
+                 << endl;
         }
         size_t n = param->data.size();
 

@@ -39,7 +39,7 @@ inline void runSingleEmbeddingTests() {
         // Forward pass.
         auto output = embedding.forward(input);
         output->data.toCPU();
-        cout << "Embedding output (CPU):" << endl; 
+        cout << "Embedding output (CPU):" << endl;
         output->data.print(); // Expected : 1 1 1 3 3 3 0 0 0 4 4 4
 
         // Backward pass.

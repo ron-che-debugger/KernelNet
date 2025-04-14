@@ -65,10 +65,10 @@ vector<VarPtr> Embedding::parameters() {
  * @param n Total number of token indices.
  */
 __global__ void embedding_forward_kernel(const float *weight,
-                                           const float *indices,
-                                           float *output,
-                                           int embed_dim,
-                                           int n) {
+                                         const float *indices,
+                                         float *output,
+                                         int embed_dim,
+                                         int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         // Convert the float token index to int.
@@ -94,33 +94,39 @@ __global__ void embedding_forward_kernel(const float *weight,
  * @return Output variable containing the corresponding embeddings.
  */
 VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
-                                        const VarPtr &weight,
-                                        int embed_dim) {
+                                      const VarPtr &weight,
+                                      int embed_dim) {
     auto func = make_shared<EmbeddingLookupFunction>();
     func->embed_dim = embed_dim;
     func->saved_weight = weight;
+
+    if (weight->requires_grad) {
+        weight->pending_count++;
+        cout << "[DEBUG] EmbeddingLookupFunction::apply: incremented pending_count for " << weight->debug_name
+             << ", new pending_count = " << weight->pending_count << endl;
+    }
+
     // Only the weight is differentiable, so push only the weight into inputs.
     func->inputs.push_back(weight);
-
-    // Save the original device of the indices tensor.
-    Device orig_device = indices->data.device();
-    // If indices are not on CPU, transfer them temporarily to CPU for extraction.
-    if (orig_device != CPU) {
-        indices->data.toCPU();
-    }
-
-    // Get the number of tokens and resize the saved_indices vector.
     size_t n = indices->data.size();
-    func->saved_indices.resize(n);
-    // Copy each token index from the CPU tensor (stored as floats).
-    float *in_data = indices->data.data();
-    for (size_t i = 0; i < n; i++) {
-        func->saved_indices[i] = static_cast<int>(in_data[i]);
+
+    // Create a separate CPU copy of the indices data.
+    vector<float> indices_cpu(n);
+    if (indices->data.device() == CPU) {
+        // Already on CPU.
+        const float *in_ptr = indices->data.data();
+        for (size_t i = 0; i < n; i++) {
+            indices_cpu[i] = in_ptr[i];
+        }
+    } else {
+        // Allocate temporary CPU memory and copy from GPU.
+        indices_cpu.resize(n);
+        cudaMemcpy(indices_cpu.data(), indices->data.data(), n * sizeof(float), cudaMemcpyDeviceToHost);
     }
 
-    // If originally on GPU, restore the indices tensor to CUDA.
-    if (orig_device != CPU) {
-        indices->data.toCUDA();
+    // Save the integer conversion from the independent CPU copy.
+    for (size_t i = 0; i < n; i++) {
+        func->indices.push_back(static_cast<int>(indices_cpu[i]));
     }
 
     // Create an output tensor of size (n * embed_dim) on the same device as indices.
@@ -130,7 +136,7 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
         float *weight_data = weight->data.data();
         float *out_data = out.data();
         for (size_t i = 0; i < n; i++) {
-            int idx = func->saved_indices[i];
+            int idx = func->indices[i];
             for (int j = 0; j < embed_dim; j++) {
                 out_data[i * embed_dim + j] = weight_data[idx * embed_dim + j];
             }
@@ -152,6 +158,7 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
     bool req_grad = weight->requires_grad; // Indices are non-differentiable.
     auto out_var = make_shared<Variable>(out, req_grad, "Embedding_out");
     out_var->set_creator(func);
+    cout << "[DEBUG] Set creator for Embedding_out: " << (out_var->creator != nullptr) << endl;
     func->output = out_var;
     return out_var;
 }
@@ -168,7 +175,9 @@ VarPtr EmbeddingLookupFunction::apply(const VarPtr &indices,
  * @return A vector containing a single tensor: the gradient for the embedding weight.
  */
 vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
-    size_t n = saved_indices.size();
+    cout << "[DEBUG] EmbeddingLookupFunction::backward called, number of saved indices: "
+         << indices.size() << endl;
+    size_t n = indices.size();
     // Initialize grad_weight with zeros on the same device as grad_output.
     Tensor grad_weight(saved_weight->data.size(), grad_output.device());
     grad_weight.fill(0.0f);
@@ -177,7 +186,7 @@ vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
         const float *grad_out_ptr = grad_output.data();
         // For each token, add its gradient slice to the correct row.
         for (size_t i = 0; i < n; i++) {
-            int idx = saved_indices[i];
+            int idx = indices[i];
             for (int j = 0; j < embed_dim; j++) {
                 grad_weight.data()[idx * embed_dim + j] += grad_out_ptr[i * embed_dim + j];
             }
@@ -186,13 +195,13 @@ vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
         // For GPU, copy grad_output to CPU for safe accumulation.
         Tensor grad_output_cpu(grad_output.size(), CPU);
         cudaMemcpy(grad_output_cpu.data(), grad_output.data(), grad_output.size() * sizeof(float), cudaMemcpyDeviceToHost);
-        
+
         // Ensure grad_weight data is on CPU.
         grad_weight.toCPU();
         const float *grad_out_ptr = grad_output_cpu.data();
         // Accumulate gradients on the CPU.
         for (size_t i = 0; i < n; i++) {
-            int idx = saved_indices[i];
+            int idx = indices[i];
             for (int j = 0; j < embed_dim; j++) {
                 grad_weight.data()[idx * embed_dim + j] += grad_out_ptr[i * embed_dim + j];
             }
@@ -200,6 +209,7 @@ vector<Tensor> EmbeddingLookupFunction::backward(const Tensor &grad_output) {
         // Transfer the accumulated gradient back to CUDA.
         grad_weight.toCUDA();
     }
+    
     return {grad_weight};
 }
 

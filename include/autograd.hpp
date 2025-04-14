@@ -225,5 +225,31 @@ class SliceFunction : public Function {
      */
     vector<Tensor> backward(const Tensor &grad_output) override;
 };
+
+class ConcatFunction : public Function {
+  public:
+    // Save the input variables and their sizes.
+    vector<VarPtr> saved_input;
+    vector<size_t> sizes;
+
+    /**
+     * @brief Concatenates a vector of input variables.
+     *
+     * This static method increments each input’s pending_count (if gradients are required),
+     * computes the concatenated output tensor, and returns the resulting Variable.
+     *
+     * @param inputs The vector of input Variables to concatenate.
+     * @return VarPtr The concatenated output Variable.
+     */
+    static VarPtr apply(const std::vector<VarPtr> &inputs);
+
+    /**
+     * @brief Splits the incoming gradient and returns gradients for each input.
+     *
+     * @param grad_output The incoming gradient tensor.
+     * @return std::vector<Tensor> A vector of gradient tensors corresponding to each saved input.
+     */
+    virtual vector<Tensor> backward(const Tensor &grad_output) override;
+};
 } // namespace autograd
 } // namespace kernelnet

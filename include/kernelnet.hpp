@@ -32,6 +32,7 @@
 
 #include "benchmark/cifar10_data_loader.hpp"
 #include "benchmark/cifar10_dataset.hpp"
+#include "benchmark/ptb_data_loader.hpp"
 #include "benchmark/ptb_dataset.hpp"
 
 using namespace std;

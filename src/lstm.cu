@@ -30,7 +30,8 @@ pair<VarPtr, VarPtr> LSTMCellFunction::apply(const VarPtr &input,
                                              int input_dim,
                                              int hidden_dim) {
     auto func = make_shared<LSTMCellFunction>();
-
+    cout << "[DEBUG] input->creator is set? " << (input->creator != nullptr) << endl;
+                                           
     // Save inputs and parameters.
     func->saved_input = input;
     func->saved_h_prev = h_prev;
@@ -103,9 +104,9 @@ pair<VarPtr, VarPtr> LSTMCellFunction::apply(const VarPtr &input,
 
     // Set autograd creator for outputs.
     h_new->set_creator(func);
-    // c_new->set_creator(func);  // Only h_new is used as primary output.
+    //c_new->set_creator(func);  // Only h_new is used as primary output.
     func->output = h_new;
-
+                                             
     return {h_new, c_new};
 }
 

@@ -78,16 +78,20 @@ class Trainer {
         for (size_t i = 0; i < inputs.size(); ++i) {
             // Forward pass.
             VarPtr prediction = model->forward(inputs[i]);
-
+            cout << "pass a" << endl;
             // Compute loss.
             VarPtr loss = loss_fn(prediction, targets[i]->data);
+            cout << "pass b" << endl;
+
+            cout << "[CHECK] loss->requires_grad = " << loss->requires_grad << endl;
+            cout << "[CHECK] loss->creator is " << (loss->creator ? "non-null" : "null") << endl;
 
             // Backward pass to compute gradients.
-            loss->backward(loss->data);
-
+            loss->backward(Tensor(1, loss->data.device()));
+            cout << "pass c" << endl;
             // Parameter update step.
             optimizer.step();
-
+            cout << "pass d" << endl;
             // Clear gradients before the next sample.
             optimizer.zero_grad();
         }

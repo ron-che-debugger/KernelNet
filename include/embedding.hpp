@@ -35,10 +35,10 @@ namespace nn {
  */
 class EmbeddingLookupFunction : public Function {
   public:
-    vector<int> saved_indices; ///< Saved token indices derived from the input.
+    vector<int> indices; ///< Saved token indices derived from the input.
     int embed_dim;             ///< Dimensionality of the embeddings.
     VarPtr saved_weight;       ///< Embedding weight variable.
-
+    
     /**
      * @brief Applies the embedding lookup.
      *
@@ -74,6 +74,8 @@ class EmbeddingLookupFunction : public Function {
  */
 class Embedding : public SingleInputModule {
   public:
+    using SingleInputModule::forward;
+
     int vocab_size; ///< Number of tokens.
     int embed_dim;  ///< Dimensionality of the embedding vectors.
     VarPtr weight;  ///< Learnable embedding weight matrix (flattened).

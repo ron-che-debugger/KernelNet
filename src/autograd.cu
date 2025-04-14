@@ -74,19 +74,27 @@ void Variable::set_creator(const FuncPtr &func) {
  */
 void Variable::backward(const Tensor &grad_output) {
     if (requires_grad) {
+        cout << "[DEBUG] In backward for " << debug_name
+             << " pending_count=" << pending_count
+             << " creator=" << (creator ? "yes" : "no") << endl;
         if (!grad_initialized) {
             grad = grad_output;
             grad_initialized = true;
+            cout << "[DEBUG] Initial gradient set for " << debug_name << endl;
         } else {
             grad = Tensor::add(grad, grad_output);
+            cout << "[DEBUG] Updated gradient for " << debug_name << endl;
         }
         if (pending_count > 0)
             pending_count--;
         if (creator && pending_count == 0) {
+            cout << "[DEBUG] Backward called on function output: " << debug_name << endl;
+            cout << "[DEBUG] Function has " << creator->inputs.size() << " inputs" << endl;
             vector<Tensor> input_grads = creator->backward(grad);
             for (size_t i = 0; i < creator->inputs.size(); ++i) {
                 if (auto inp = creator->inputs[i].lock()) {
                     if (inp->requires_grad) {
+                        cout << "[DEBUG] Propagating backward to " << inp->debug_name << endl;
                         inp->backward(input_grads[i]);
                     }
                 }
@@ -624,7 +632,11 @@ __global__ void slice_backward_kernel(const float *grad_out, float *grad_in, int
  */
 VarPtr SliceFunction::apply(const VarPtr &input, int batch_size, int start, int end) {
     auto func = make_shared<SliceFunction>();
+    if (input->requires_grad) {
+        input->pending_count++;
+    }
     func->saved_input = input;
+    func->inputs.push_back(input);  
     func->batch_size = batch_size;
     func->start = start;
     func->end = end;
@@ -687,6 +699,75 @@ vector<Tensor> SliceFunction::backward(const Tensor &grad_output) {
         cudaDeviceSynchronize();
     }
     return {grad_input};
+}
+
+VarPtr ConcatFunction::apply(const vector<VarPtr> &inputs) {
+    auto func = make_shared<ConcatFunction>();
+    func->saved_input = inputs;
+    size_t total_size = 0;
+
+    for (const auto &inp : inputs) {
+        func->inputs.push_back(inp);
+    }
+
+    // Increment pending_count for each input (if gradients are required)
+    // and record each input's size.
+    for (auto &inp : inputs) {
+        size_t sz = inp->data.size();
+        func->sizes.push_back(sz);
+        if (inp->requires_grad)
+            inp->pending_count++;
+        total_size += sz;
+    }
+
+    // Create the output tensor with the total size.
+    Tensor out_data(total_size, inputs[0]->data.device());
+    float *out_ptr = out_data.data();
+
+    if (inputs[0]->data.device() == CPU) {
+        for (auto &inp : inputs) {
+            const float *in_ptr = inp->data.data();
+            memcpy(out_ptr, in_ptr, inp->data.size() * sizeof(float));
+            out_ptr += inp->data.size();
+        }
+    } else {
+        for (auto &inp : inputs) {
+            const float *in_ptr = inp->data.data();
+            cudaMemcpy(out_ptr, in_ptr, inp->data.size() * sizeof(float), cudaMemcpyDeviceToDevice);
+            out_ptr += inp->data.size();
+        }
+    }
+
+    bool req_grad = false;
+    for (auto &inp : inputs)
+        req_grad = req_grad || inp->requires_grad;
+
+    auto out = make_shared<Variable>(out_data, req_grad, "Concat_out");
+    out->set_creator(func);
+    func->output = out;
+    return out;
+}
+
+vector<Tensor> ConcatFunction::backward(const Tensor &grad_output) {
+    vector<Tensor> grads;
+    if (grad_output.device() == CPU) {
+        const float *grad_ptr = grad_output.data();
+        for (auto sz : sizes) {
+            Tensor grad_in(sz, grad_output.device());
+            memcpy(grad_in.data(), grad_ptr, sz * sizeof(float));
+            grad_ptr += sz;
+            grads.push_back(grad_in);
+        }
+    } else {
+        const float *grad_ptr = grad_output.data();
+        for (auto sz : sizes) {
+            Tensor grad_in(sz, grad_output.device());
+            cudaMemcpy(grad_in.data(), grad_ptr, sz * sizeof(float), cudaMemcpyDeviceToDevice);
+            grad_ptr += sz;
+            grads.push_back(grad_in);
+        }
+    }
+    return grads;
 }
 } // namespace autograd
 } // namespace kernelnet
