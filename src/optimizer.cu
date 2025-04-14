@@ -109,16 +109,24 @@ SGD::SGD(const vector<VarPtr> &params, float lr, float clip_value)
  */
 void SGD::step() {
     for (auto param : params) {
-        cout << "[DEBUG] SGD step: " << (param->debug_name.empty() ? "unknown" : param->debug_name)
-             << " grad_initialized: " << param->grad_initialized << endl;
         if (!param->grad_initialized) {
+            
             // Print out a warning (or error) along with the parameter's debug name if available.
             cout << "[ERROR] Gradient not initialized for parameter: "
                  << (param->debug_name.empty() ? "unknown" : param->debug_name)
                  << endl;
+            
         }
         size_t n = param->data.size();
 
+        
+        std::cout << "[DEBUG] Before update, first 5 weights for param " << param->debug_name << ": ";
+        const float *param_data = param->data.data();
+        for (size_t i = 0; i < std::min(n, size_t(5)); i++) {
+            std::cout << param_data[i] << " ";
+        }
+        std::cout << std::endl;
+        
         // Apply norm-based gradient clipping if clip_value > 0.
         if (clip_value > 0.0f) {
             if (param->grad.device() == CPU) {
@@ -175,6 +183,17 @@ void SGD::step() {
                 param->data.data()[i] -= lr * param->grad.data()[i];
             }
         }
+        
+        float grad_sum = param->grad.sum(); // Or a similar method to sum over all grad elements.
+        std::cout << "Gradient sum for " << param->debug_name << ": " << grad_sum << std::endl;
+
+        // After update, print a few parameter values again:
+        std::cout << "[DEBUG] After update, first 5 weights for param " << param->debug_name << ": ";
+        for (size_t i = 0; i < std::min(n, size_t(5)); i++) {
+            std::cout << param->data.data()[i] << " ";
+        }
+        std::cout << std::endl;
+        
     }
 }
 
