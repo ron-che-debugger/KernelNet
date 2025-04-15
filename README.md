@@ -11,7 +11,7 @@
 
 ## Features
 ### Tensor Operations & Autograd:
-- Custom tensor operations for numerical arithmetic computations, including element-wise addition, subtraction, multiplication, matrix multiplication, transpose, scalar multiplication, broadcast addition, sum, and argmax.
+- Custom tensor operations for numerical arithmetic computations include element-wise addition, subtraction, and multiplication; matrix multiplication and transpose; as well as scalar multiplication, broadcast addition, summation, and argmax.
 - Built-in automatic differentiation as the backbone of gradient backward propagation.
 ### Neural Network Building Blocks:
 - Dense Layers: Fully connected layers for standard feedforward networks.
