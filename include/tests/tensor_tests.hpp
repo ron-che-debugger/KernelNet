@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kernelnet.hpp"
+#include "api_header.hpp"
 #include <cassert>
 #include <cuda_runtime.h>
 #include <iostream>

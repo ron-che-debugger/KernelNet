@@ -17,10 +17,10 @@ INCLUDES = -I"./include" \
            -I"C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/winrt" \
            -I"C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/cppwinrt"
 
-# Preprocessor macros
-DEFINES = -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS
+# Preprocessor macros: add KERNELNET_EXPORTS to export public symbols from the DLL.
+DEFINES = -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -DKERNELNET_EXPORTS
 
-# Host compiler flags with spaces (switched to /MDd for debug runtime)
+# Host compiler flags with spaces
 XCOMPILER_FLAGS = "/std:c++17 /EHsc /W3 /nologo /O2 /MDd"
 
 # Define the host compiler
@@ -32,37 +32,42 @@ NVCC_COMPILE_FLAGS = $(CUDA_ARCH) -G -g -std=c++17 $(INCLUDES) $(DEFINES) \
                      -cudart static --use-local-env --machine 64 --compile -x cu \
                      -ccbin $(CCBIN)
 
-# Linker flags (unchanged)
-LINKER_FLAGS = -Xlinker /LIBPATH:\"C:/Program\ Files/Microsoft\ Visual\ Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64\" \
-               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/ucrt/x64\" \
-               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/um/x64\"
-
-# NVCC link flags (added -cudart static)
-NVCC_LINK_FLAGS = $(CUDA_ARCH) -G -g $(INCLUDES) $(DEFINES) \
+# Linker flags: add shared flag to build a DLL
+NVCC_LINK_FLAGS = $(CUDA_ARCH) -G -g -shared $(INCLUDES) $(DEFINES) \
                   -Xcompiler $(XCOMPILER_FLAGS) \
                   -cudart static --use-local-env --machine 64 \
                   -ccbin $(CCBIN)
+
+LINKER_FLAGS = -Xlinker /LIBPATH:\"C:/Program\ Files/Microsoft\ Visual\ Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64\" \
+               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/ucrt/x64\" \
+               -Xlinker /LIBPATH:\"C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Lib/10.0.22621.0/um/x64\"
 
 # Directories
 SRCDIR = src
 OBJDIR = obj
 
-# Target executable
-TARGET = kernelnet.exe
+# Target DLL (the import library will typically be kernelnet.lib)
+TARGET = kernelnet.dll
 
 # Source files (adjust filenames as necessary)
 SOURCES = $(SRCDIR)/tensor.cu $(SRCDIR)/dense.cu $(SRCDIR)/conv2d.cu $(SRCDIR)/optimizer.cu $(SRCDIR)/autograd.cu\
-        $(SRCDIR)/maxpool.cu $(SRCDIR)/softmax.cu $(SRCDIR)/sigmoid.cu $(SRCDIR)/tanh.c $(SRCDIR)/lstm.cu\
-        $(SRCDIR)/relu.cu $(SRCDIR)/embedding.cu $(SRCDIR)/main.cpp
+          $(SRCDIR)/maxpool.cu $(SRCDIR)/softmax.cu $(SRCDIR)/sigmoid.cu $(SRCDIR)/tanh.c $(SRCDIR)/lstm.cu\
+          $(SRCDIR)/lstm_wrapper.cpp $(SRCDIR)/sequential.cpp $(SRCDIR)/relu.cu $(SRCDIR)/embedding.cu $(SRCDIR)/trainer.cpp
+
+# Assuming your main file is only used for testing your DLL, you might build it separately.
+# For the library DLL, we exclude main.cpp.
+LIB_SOURCES = $(filter-out $(SRCDIR)/main.cpp, $(SOURCES))
 
 # Object files
 CU_SOURCES = $(wildcard $(SRCDIR)/*.cu)
 CPP_SOURCES = $(wildcard $(SRCDIR)/*.cpp)
 
-OBJS = $(patsubst $(SRCDIR)/%.cu,$(OBJDIR)/%.obj,$(CU_SOURCES)) \
-       $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.obj,$(CPP_SOURCES))
+# For DLL, exclude main.cpp from object list:
+LIB_CU_OBJS = $(patsubst $(SRCDIR)/%.cu,$(OBJDIR)/%.obj,$(filter-out $(SRCDIR)/main.cu,$(CU_SOURCES)))
+LIB_CPP_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.obj,$(filter-out $(SRCDIR)/main.cpp,$(CPP_SOURCES)))
+OBJS = $(LIB_CU_OBJS) $(LIB_CPP_OBJS)
 
-# Build the target executable
+# Build the target DLL
 $(TARGET): $(OBJS)
 	@echo "Linking $(TARGET)..."
 	$(NVCC) $(NVCC_LINK_FLAGS) -o $@ $^ $(LINKER_FLAGS)
@@ -74,21 +79,17 @@ $(OBJDIR)/%.obj: $(SRCDIR)/%.cpp
 	@mkdir -p "$(OBJDIR)"
 	$(NVCC) $(NVCC_COMPILE_FLAGS) -c $< -o $@
 
-# Rule for compiling CUDA source files (if any)
+# Rule for compiling CUDA source files
 $(OBJDIR)/%.obj: $(SRCDIR)/%.cu
 	@mkdir -p "$(OBJDIR)"
 	$(NVCC) $(NVCC_COMPILE_FLAGS) -c $< -o $@
-
-# Run target
-run: $(TARGET)
-	./$(TARGET)
 
 # Clean build files
 clean:
 	rm -f $(OBJDIR)/*.obj
 	rm -f $(TARGET)
-	rm -f $(TARGET:.exe=.exp) $(TARGET:.exe=.lib) $(TARGET:.exe=.pdb)
+	rm -f $(TARGET:.dll=.lib) $(TARGET:.dll=.exp) $(TARGET:.dll=.pdb)
 	rm -f vc*.pdb
 
 # Phony targets
-.PHONY: all clean run
+.PHONY: all clean

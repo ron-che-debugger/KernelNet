@@ -90,10 +90,6 @@ using namespace std;
 #include "./tests/sequential_lstm_tests.hpp"
 #endif
 
-#ifdef TEST_WRAPPERLSTM
-#include "./tests/wrapper_lstm_tests.hpp"
-#endif
-
 #ifdef TEST_CIFAR10
 #include "./benchmark/cifar10_tests.hpp"
 #endif
