@@ -33,13 +33,13 @@
 -  Provides integrated upstream data-loading and preprocessing pipelines that allows benchmarking both the time efficiency and accuracy of convolutional and recurrent models built using the **KernelNet** architecture on **CIFAR10** and **PennTree** Dataset.
 
 ## Installation
-- Obtain the **KernelNet** [`packages`](bin), which contain the pre-built libraries [`kernelnet.dll`](bin/kernelnet.dll), [`kernelnet.lib`](bin/kernelnet.lib), and an [`/include`](bin/include) folder.  
+- Obtain the **KernelNet** [`packages`](https://github.com/ron-che-debugger/KernelNet/releases/tag/installation), which contain the pre-built libraries [`kernelnet.dll`](bin/kernelnet.dll), [`kernelnet.lib`](bin/kernelnet.lib), and an [`/include`](bin/include) folder.  
 - Place [`kernelnet.dll`](bin/kernelnet.dll) in your executable's folder or system path, and configure your linker to reference [`kernelnet.lib`](bin/kernelnet.lib).
 - Add the [`/include`](bin/include) folder to your project's include directories. In your source files, simply use:
     ```cpp
-    #include "api_header.hpp"
+    #include "kernelnet.hpp"
     ```
-    to access the functionalities. For detailed function signatures and class descriptions, check the [`KernelNet API website`]().
+    to access the functionalities. For detailed function signatures and class descriptions, check the [`KernelNet API`](https://ronghanche.com/kernelnet-main).
 
 ## License
 This project is licensed under the MIT License. See the [`LICENSE`](LICENSE) file for details.
